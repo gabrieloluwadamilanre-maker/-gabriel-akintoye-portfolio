@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { m } from 'motion/react';
 
 interface RevealTextProps {
   text: string;
@@ -24,7 +24,7 @@ export function RevealText({
     <Tag id={id} className={className}>
       {words.map((word, idx) => (
         <span key={`${word}-${idx}`} className="inline-block overflow-hidden align-top">
-          <motion.span
+          <m.span
             className="inline-block"
             initial={{ opacity: 0, y: 18 }}
             animate={immediate ? { opacity: 1, y: 0 } : undefined}
@@ -38,7 +38,7 @@ export function RevealText({
           >
             {word}
             {idx < words.length - 1 ? '\u00A0' : ''}
-          </motion.span>
+          </m.span>
         </span>
       ))}
     </Tag>

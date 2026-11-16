@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { m } from 'motion/react';
 import { PROFILE } from '@/src/data/portfolio';
 import { FloatingTypography, type FloatingWordItem } from './FloatingTypography';
 import { RevealText } from './RevealText';
@@ -54,7 +54,7 @@ export function About() {
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-16">
           {/* Section Title Column */}
           <div className="lg:col-span-4 space-y-3">
-            <motion.p
+            <m.p
               initial={{ opacity: 0, y: 8 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-60px' }}
@@ -62,7 +62,7 @@ export function About() {
               className="text-sm font-semibold text-[#3B82F6]"
             >
               About Me
-            </motion.p>
+            </m.p>
             <RevealText
               as="h2"
               id="about-heading"
@@ -73,7 +73,7 @@ export function About() {
 
           {/* Narrative + Glassmorphic Focus Grid */}
           <div className="lg:col-span-8 space-y-10">
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 14 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-60px' }}
@@ -82,11 +82,11 @@ export function About() {
             >
               <p>{PROFILE.aboutSummary}</p>
               <p className="text-[#A1AAB8]">{PROFILE.aboutSecondary}</p>
-            </motion.div>
+            </m.div>
 
             <div className="grid grid-cols-1 gap-4 border-t border-[#1E3A5F]/50 pt-8 sm:grid-cols-3">
               {FOCUS_AREAS.map((item, idx) => (
-                <motion.div
+                <m.div
                   key={item.index}
                   initial={{ opacity: 0, y: 16 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -96,7 +96,7 @@ export function About() {
                     delay: idx * 0.08,
                     ease: [0.16, 1, 0.3, 1],
                   }}
-                  className="rounded-xl border border-[#1E3A5F]/50 bg-[#111C30]/75 backdrop-blur-md p-5 transition-all duration-200 hover:-translate-y-1 hover:border-[#3B82F6]/60 hover:shadow-[0_12px_30px_rgba(37,99,235,0.16)]"
+                  className="rounded-xl border border-[#1E3A5F]/50 bg-[#111C30]/95 md:bg-[#111C30]/75 md:backdrop-blur-md p-5 transition-all duration-200 hover:-translate-y-1 hover:border-[#3B82F6]/60 hover:shadow-[0_12px_30px_rgba(37,99,235,0.16)]"
                 >
                   <span className="font-mono text-xs tabular-nums text-[#60A5FA]">
                     {item.index}
@@ -107,7 +107,7 @@ export function About() {
                   <p className="mt-2 text-sm leading-relaxed text-[#A1AAB8]">
                     {item.description}
                   </p>
-                </motion.div>
+                </m.div>
               ))}
             </div>
           </div>

@@ -1,4 +1,4 @@
-import savourHouseImg from '@/src/assets/images/savour_house_culinary_1794743501346.jpg';
+import savourHouseImg from '@/src/assets/images/savour_house_culinary.webp';
 
 export interface NavLinkItem {
   label: string;
@@ -25,6 +25,8 @@ export interface ProjectItem {
   liveUrl: string;
   imageUrl: string;
   imageAlt: string;
+  imageWidth: number;
+  imageHeight: number;
 }
 
 export const PROFILE = {
@@ -119,5 +121,7 @@ export const FEATURED_PROJECTS: ProjectItem[] = [
     liveUrl: 'https://pixels-to-living-layout.vercel.app',
     imageUrl: savourHouseImg,
     imageAlt: 'Plated culinary dish representing the Savour House restaurant web application',
+    imageWidth: 1200,
+    imageHeight: 675,
   },
 ];

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Expand, FolderPlus, X } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, m } from 'motion/react';
 import { FEATURED_PROJECTS, type ProjectItem } from '@/src/data/portfolio';
 import { FloatingTypography, type FloatingWordItem } from './FloatingTypography';
 import { ImageWithFallback } from './ImageWithFallback';
@@ -26,17 +26,39 @@ const PROJECTS_FLOATING_WORDS: FloatingWordItem[] = [
 
 export function Projects() {
   const [previewProject, setPreviewProject] = useState<ProjectItem | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const lastTriggerRef = useRef<HTMLElement | null>(null);
+
+  const openPreview = (project: ProjectItem, triggerEl: HTMLElement) => {
+    lastTriggerRef.current = triggerEl;
+    setPreviewProject(project);
+  };
+
+  const closePreview = () => {
+    setPreviewProject(null);
+    requestAnimationFrame(() => {
+      lastTriggerRef.current?.focus();
+    });
+  };
 
   useEffect(() => {
+    if (!previewProject) return;
+
+    const frameId = requestAnimationFrame(() => {
+      closeButtonRef.current?.focus();
+    });
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setPreviewProject(null);
+        closePreview();
       }
     };
-    if (previewProject) {
-      window.addEventListener('keydown', onKeyDown);
-    }
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener('keydown', onKeyDown);
+    };
   }, [previewProject]);
 
   return (
@@ -49,7 +71,7 @@ export function Projects() {
 
       <div className="relative z-10 mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
         <div className="space-y-3 max-w-2xl">
-          <motion.p
+          <m.p
             initial={{ opacity: 0, y: 8 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-60px' }}
@@ -57,14 +79,14 @@ export function Projects() {
             className="text-sm font-semibold text-[#3B82F6]"
           >
             Featured Projects
-          </motion.p>
+          </m.p>
           <RevealText
             as="h2"
             id="projects-heading"
             text="Selected work built for the web."
             className="font-display text-2xl font-semibold tracking-tight text-[#F8FAFC] sm:text-3xl"
           />
-          <motion.p
+          <m.p
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-60px' }}
@@ -72,13 +94,13 @@ export function Projects() {
             className="text-sm leading-relaxed text-[#A1AAB8] sm:text-base"
           >
             Practical applications focused on responsive layout, clean user journeys, and reliable front-end implementation.
-          </motion.p>
+          </m.p>
         </div>
 
         {/* Projects Bento / Grid — Structured to add future projects cleanly */}
         <div className="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-12">
           {FEATURED_PROJECTS.map((project, idx) => (
-            <motion.div
+            <m.div
               key={project.id}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -93,7 +115,7 @@ export function Projects() {
               <TiltCard
                 maxTilt={4}
                 glowColor="rgba(59, 130, 246, 0.2)"
-                className="h-full overflow-hidden rounded-2xl border border-[#1E3A5F]/65 bg-[#111C30]/85 backdrop-blur-md shadow-[0_20px_50px_rgba(2,6,23,0.45)] hover:border-[#3B82F6]/70"
+                className="h-full overflow-hidden rounded-2xl border border-[#1E3A5F]/65 bg-[#111C30]/95 md:bg-[#111C30]/85 md:backdrop-blur-md shadow-[0_20px_50px_rgba(2,6,23,0.45)] hover:border-[#3B82F6]/70"
               >
                 <article className="relative z-20 flex h-full flex-col">
                   {/* Project Media Preview */}
@@ -102,6 +124,8 @@ export function Projects() {
                       src={project.imageUrl}
                       alt={project.imageAlt}
                       fallbackTitle={project.title}
+                      width={project.imageWidth}
+                      height={project.imageHeight}
                       containerClassName="h-full w-full"
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                     />
@@ -111,9 +135,9 @@ export function Projects() {
                     />
                     <button
                       type="button"
-                      onClick={() => setPreviewProject(project)}
+                      onClick={(e) => openPreview(project, e.currentTarget)}
                       aria-label={`Inspect ${project.title} preview image`}
-                      className="absolute right-4 bottom-4 inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-[#1E3A5F]/80 bg-[#0B1220]/85 px-3.5 py-2 text-xs font-medium text-[#F8FAFC] backdrop-blur-md hover:border-[#3B82F6] hover:text-[#60A5FA] transition-colors"
+                      className="absolute right-4 bottom-4 inline-flex min-h-[40px] items-center gap-2 rounded-lg border border-[#1E3A5F]/80 bg-[#0B1220]/90 md:bg-[#0B1220]/85 px-3.5 py-2 text-xs font-medium text-[#F8FAFC] md:backdrop-blur-md hover:border-[#3B82F6] hover:text-[#60A5FA] transition-colors"
                     >
                       <Expand className="w-3.5 h-3.5" aria-hidden="true" />
                       <span>Preview</span>
@@ -173,7 +197,7 @@ export function Projects() {
                         href={project.liveUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-[#3B82F6] px-5 py-2.5 text-sm font-semibold text-[#F8FAFC] shadow-[0_0_20px_rgba(59,130,246,0.35)] hover:bg-[#2563EB] hover:shadow-[0_0_28px_rgba(59,130,246,0.55)] transition-all whitespace-nowrap shrink-0"
+                        className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-5 py-2.5 text-sm font-semibold text-[#F8FAFC] shadow-[0_0_20px_rgba(59,130,246,0.35)] hover:bg-[#1D4ED8] hover:shadow-[0_0_28px_rgba(59,130,246,0.55)] transition-all whitespace-nowrap shrink-0"
                       >
                         <span>Visit Live Website</span>
                         <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
@@ -186,17 +210,17 @@ export function Projects() {
                   </div>
                 </article>
               </TiltCard>
-            </motion.div>
+            </m.div>
           ))}
 
           {/* Reserved Slot for Future Projects */}
-          <motion.aside
+          <m.aside
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-60px' }}
             transition={{ duration: 0.5, delay: 0.12, ease: [0.16, 1, 0.3, 1] }}
             aria-label="Upcoming projects placeholder"
-            className="lg:col-span-4 flex flex-col justify-between rounded-2xl border border-dashed border-[#1E3A5F]/80 bg-[#111C30]/55 backdrop-blur-md p-6 sm:p-8"
+            className="lg:col-span-4 flex flex-col justify-between rounded-2xl border border-dashed border-[#1E3A5F]/80 bg-[#111C30]/85 md:bg-[#111C30]/55 md:backdrop-blur-md p-6 sm:p-8"
           >
             <div className="space-y-4">
               <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#1E3A5F]/80 bg-[#0B1220]/80 text-[#3B82F6]">
@@ -225,14 +249,14 @@ export function Projects() {
                 <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
               </a>
             </div>
-          </motion.aside>
+          </m.aside>
         </div>
       </div>
 
       {/* Accessible Lightbox Modal */}
       <AnimatePresence>
         {previewProject && (
-          <motion.div
+          <m.div
             role="dialog"
             aria-modal="true"
             aria-labelledby="lightbox-title"
@@ -240,10 +264,10 @@ export function Projects() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            onClick={() => setPreviewProject(null)}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B1220]/90 p-4 backdrop-blur-md sm:p-6"
+            onClick={closePreview}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B1220]/95 md:bg-[#0B1220]/90 p-4 md:backdrop-blur-md sm:p-6"
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -262,8 +286,9 @@ export function Projects() {
                   <p className="text-xs text-[#A1AAB8]">{previewProject.subtitle}</p>
                 </div>
                 <button
+                  ref={closeButtonRef}
                   type="button"
-                  onClick={() => setPreviewProject(null)}
+                  onClick={closePreview}
                   aria-label="Close project preview"
                   className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-[#1E3A5F]/70 bg-[#0B1220] text-[#F8FAFC] hover:border-[#3B82F6] transition-colors"
                 >
@@ -276,6 +301,8 @@ export function Projects() {
                   src={previewProject.imageUrl}
                   alt={previewProject.imageAlt}
                   fallbackTitle={previewProject.title}
+                  width={previewProject.imageWidth}
+                  height={previewProject.imageHeight}
                   containerClassName="h-full w-full"
                   className="h-full w-full object-cover"
                 />
@@ -289,14 +316,14 @@ export function Projects() {
                   href={previewProject.liveUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-[40px] items-center gap-2 rounded-lg bg-[#3B82F6] px-4 py-2 text-xs font-semibold text-[#F8FAFC] hover:bg-[#2563EB] transition-colors sm:text-sm"
+                  className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2 text-xs font-semibold text-[#F8FAFC] hover:bg-[#1D4ED8] transition-colors sm:text-sm"
                 >
                   <span>Visit Live Website</span>
                   <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
                 </a>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
     </section>

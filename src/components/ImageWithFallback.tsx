@@ -8,6 +8,8 @@ interface ImageWithFallbackProps {
   className?: string;
   containerClassName?: string;
   priority?: boolean;
+  width?: number;
+  height?: number;
 }
 
 export function ImageWithFallback({
@@ -17,6 +19,8 @@ export function ImageWithFallback({
   className = 'w-full h-full object-cover',
   containerClassName = '',
   priority = false,
+  width,
+  height,
 }: ImageWithFallbackProps) {
   const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -45,6 +49,8 @@ export function ImageWithFallback({
       <img
         src={src}
         alt={alt}
+        width={width}
+        height={height}
         referrerPolicy="no-referrer"
         loading={priority ? 'eager' : 'lazy'}
         decoding={priority ? 'sync' : 'async'}

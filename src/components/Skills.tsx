@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'motion/react';
+import { useRef, useState, type KeyboardEvent } from 'react';
+import { m } from 'motion/react';
 import { SKILL_CATEGORIES, SKILLS, type SkillCategory } from '@/src/data/portfolio';
 import { FloatingTypography, type FloatingWordItem } from './FloatingTypography';
 import { RevealText } from './RevealText';
@@ -24,11 +24,33 @@ const SKILLS_FLOATING_WORDS: FloatingWordItem[] = [
 
 export function Skills() {
   const [activeCategory, setActiveCategory] = useState<SkillCategory>('all');
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const filteredSkills =
     activeCategory === 'all'
       ? SKILLS
       : SKILLS.filter((skill) => skill.category === activeCategory);
+
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const count = SKILL_CATEGORIES.length;
+    let nextIndex: number | null = null;
+
+    if (event.key === 'ArrowRight') {
+      nextIndex = (index + 1) % count;
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex = (index - 1 + count) % count;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = count - 1;
+    }
+
+    if (nextIndex !== null) {
+      event.preventDefault();
+      setActiveCategory(SKILL_CATEGORIES[nextIndex].id);
+      tabRefs.current[nextIndex]?.focus();
+    }
+  };
 
   return (
     <section
@@ -42,7 +64,7 @@ export function Skills() {
         {/* Section Header + Interactive Filter Tabs */}
         <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="space-y-3 max-w-xl">
-            <motion.p
+            <m.p
               initial={{ opacity: 0, y: 8 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-60px' }}
@@ -50,14 +72,14 @@ export function Skills() {
               className="text-sm font-semibold text-[#3B82F6]"
             >
               Skills &amp; Toolkit
-            </motion.p>
+            </m.p>
             <RevealText
               as="h2"
               id="skills-heading"
               text="Technologies I am developing and working with."
               className="font-display text-2xl font-semibold tracking-tight text-[#F8FAFC] sm:text-3xl"
             />
-            <motion.p
+            <m.p
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-60px' }}
@@ -65,26 +87,33 @@ export function Skills() {
               className="text-sm leading-relaxed text-[#A1AAB8] sm:text-base"
             >
               Core front-end foundations, version control, and deployment practices I use while building and refining web projects.
-            </motion.p>
+            </m.p>
           </div>
 
           <div
             role="tablist"
             aria-label="Filter skills by category"
-            className="inline-flex w-fit items-center gap-1 rounded-xl border border-[#1E3A5F]/60 bg-[#111C30]/80 backdrop-blur-md p-1"
+            className="inline-flex w-fit items-center gap-1 rounded-xl border border-[#1E3A5F]/60 bg-[#111C30]/95 md:bg-[#111C30]/80 md:backdrop-blur-md p-1"
           >
-            {SKILL_CATEGORIES.map((category) => {
+            {SKILL_CATEGORIES.map((category, index) => {
               const isSelected = activeCategory === category.id;
               return (
                 <button
                   key={category.id}
+                  ref={(el) => {
+                    tabRefs.current[index] = el;
+                  }}
+                  id={`skills-tab-${category.id}`}
                   type="button"
                   role="tab"
                   aria-selected={isSelected}
+                  aria-controls="skills-tabpanel"
+                  tabIndex={isSelected ? 0 : -1}
                   onClick={() => setActiveCategory(category.id)}
+                  onKeyDown={(e) => handleTabKeyDown(e, index)}
                   className={`min-h-[40px] rounded-lg px-3.5 py-2 text-xs font-medium transition-all whitespace-nowrap shrink-0 sm:text-sm ${
                     isSelected
-                      ? 'bg-[#3B82F6] text-[#F8FAFC] shadow-[0_0_16px_rgba(59,130,246,0.45)]'
+                      ? 'bg-[#2563EB] text-[#F8FAFC] shadow-[0_0_16px_rgba(59,130,246,0.45)] hover:bg-[#1D4ED8]'
                       : 'text-[#A1AAB8] hover:text-[#F8FAFC]'
                   }`}
                 >
@@ -95,27 +124,29 @@ export function Skills() {
           </div>
         </div>
 
-        {/* Interactive 3D Depth Skill Cards Grid */}
-        <motion.div
-          layout
+        {/* Interactive 3D Depth Skill Cards Grid (without expensive layout projection) */}
+        <div
+          key={activeCategory}
+          id="skills-tabpanel"
+          role="tabpanel"
+          aria-labelledby={`skills-tab-${activeCategory}`}
           className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
         >
           {filteredSkills.map((skill, idx) => (
-            <motion.div
+            <m.div
               key={skill.id}
-              layout
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 0, y: 14 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{
-                duration: 0.4,
-                delay: idx * 0.05,
+                duration: 0.35,
+                delay: idx * 0.04,
                 ease: [0.16, 1, 0.3, 1],
               }}
             >
               <TiltCard
                 maxTilt={5}
-                className="h-full rounded-xl border border-[#1E3A5F]/60 bg-[#111C30]/80 backdrop-blur-md p-6 transition-colors hover:border-[#3B82F6]/65 hover:shadow-[0_12px_32px_rgba(59,130,246,0.16)]"
+                className="h-full rounded-xl border border-[#1E3A5F]/60 bg-[#111C30]/95 md:bg-[#111C30]/80 md:backdrop-blur-md p-6 transition-colors hover:border-[#3B82F6]/65 hover:shadow-[0_12px_32px_rgba(59,130,246,0.16)]"
               >
                 <div className="relative z-20 flex h-full flex-col justify-between gap-4">
                   <div className="flex items-baseline justify-between gap-4">
@@ -132,9 +163,9 @@ export function Skills() {
                   </p>
                 </div>
               </TiltCard>
-            </motion.div>
+            </m.div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

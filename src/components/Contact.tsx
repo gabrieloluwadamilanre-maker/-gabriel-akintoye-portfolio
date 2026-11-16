@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowUpRight, Check, Copy, Mail, MessageCircle } from 'lucide-react';
-import { motion } from 'motion/react';
+import { m } from 'motion/react';
 import { PROFILE } from '@/src/data/portfolio';
 import { FloatingTypography, type FloatingWordItem } from './FloatingTypography';
 import { RevealText } from './RevealText';
@@ -40,7 +40,7 @@ export function Contact() {
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-12">
           {/* Left Column */}
           <div className="lg:col-span-5 space-y-4">
-            <motion.p
+            <m.p
               initial={{ opacity: 0, y: 8 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-60px' }}
@@ -48,14 +48,14 @@ export function Contact() {
               className="text-sm font-semibold text-[#3B82F6]"
             >
               Contact
-            </motion.p>
+            </m.p>
             <RevealText
               as="h2"
               id="contact-heading"
               text="Let's build something together."
               className="font-display text-2xl font-semibold tracking-tight text-[#F8FAFC] sm:text-3xl"
             />
-            <motion.p
+            <m.p
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-60px' }}
@@ -63,13 +63,13 @@ export function Contact() {
               className="text-sm leading-relaxed text-[#A1AAB8] sm:text-base"
             >
               I am open to freelance website projects, collaborative builds, and entry-level or internship opportunities. Reach out directly by email or WhatsApp.
-            </motion.p>
+            </m.p>
           </div>
 
           {/* Right Column: Email & WhatsApp Glassmorphic Cards */}
           <div className="lg:col-span-7 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {/* Email Card */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-50px' }}
@@ -77,7 +77,7 @@ export function Contact() {
             >
               <TiltCard
                 maxTilt={4}
-                className="h-full rounded-2xl border border-[#1E3A5F]/65 bg-[#111C30]/80 backdrop-blur-md p-6 hover:border-[#3B82F6]/65 hover:shadow-[0_12px_32px_rgba(59,130,246,0.16)]"
+                className="h-full rounded-2xl border border-[#1E3A5F]/65 bg-[#111C30]/95 md:bg-[#111C30]/80 md:backdrop-blur-md p-6 hover:border-[#3B82F6]/65 hover:shadow-[0_12px_32px_rgba(59,130,246,0.16)]"
               >
                 <div className="relative z-20 flex h-full flex-col justify-between gap-6">
                   <div className="space-y-3">
@@ -100,7 +100,7 @@ export function Contact() {
                   <div className="flex flex-wrap items-center gap-2 pt-2">
                     <a
                       href={`mailto:${PROFILE.email}`}
-                      className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg bg-[#3B82F6] px-4 py-2.5 text-sm font-semibold text-[#F8FAFC] shadow-[0_0_20px_rgba(59,130,246,0.35)] hover:bg-[#2563EB] transition-all whitespace-nowrap"
+                      className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-[#F8FAFC] shadow-[0_0_20px_rgba(59,130,246,0.35)] hover:bg-[#1D4ED8] transition-all whitespace-nowrap"
                     >
                       <span>Send Email</span>
                       <ArrowUpRight className="w-4 h-4" aria-hidden="true" />
@@ -109,7 +109,7 @@ export function Contact() {
                     <button
                       type="button"
                       onClick={handleCopyEmail}
-                      aria-label="Copy email address"
+                      aria-label={copied ? 'Email address copied' : 'Copy email address'}
                       className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-[#1E3A5F]/80 bg-[#0B1220]/80 px-3.5 py-2.5 text-xs font-medium text-[#F8FAFC] hover:border-[#3B82F6]/70 transition-colors whitespace-nowrap"
                     >
                       {copied ? (
@@ -124,13 +124,16 @@ export function Contact() {
                         </>
                       )}
                     </button>
+                    <span role="status" aria-live="polite" className="sr-only">
+                      {copied ? 'Email address copied to clipboard.' : ''}
+                    </span>
                   </div>
                 </div>
               </TiltCard>
-            </motion.div>
+            </m.div>
 
             {/* WhatsApp Card */}
-            <motion.div
+            <m.div
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-50px' }}
@@ -138,7 +141,7 @@ export function Contact() {
             >
               <TiltCard
                 maxTilt={4}
-                className="h-full rounded-2xl border border-[#1E3A5F]/65 bg-[#111C30]/80 backdrop-blur-md p-6 hover:border-[#3B82F6]/65 hover:shadow-[0_12px_32px_rgba(59,130,246,0.16)]"
+                className="h-full rounded-2xl border border-[#1E3A5F]/65 bg-[#111C30]/95 md:bg-[#111C30]/80 md:backdrop-blur-md p-6 hover:border-[#3B82F6]/65 hover:shadow-[0_12px_32px_rgba(59,130,246,0.16)]"
               >
                 <div className="relative z-20 flex h-full flex-col justify-between gap-6">
                   <div className="space-y-3">
@@ -173,7 +176,7 @@ export function Contact() {
                   </div>
                 </div>
               </TiltCard>
-            </motion.div>
+            </m.div>
           </div>
         </div>
       </div>

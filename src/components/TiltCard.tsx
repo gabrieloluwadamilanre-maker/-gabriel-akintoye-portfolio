@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react';
 
 interface TiltCardProps {
   children: ReactNode;
@@ -14,47 +14,99 @@ export function TiltCard({
   glowColor = 'rgba(59, 130, 246, 0.16)',
 }: TiltCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [transform, setTransform] = useState('perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)');
-  const [glowPos, setGlowPos] = useState({ x: 50, y: 50, active: false });
+  const rafIdRef = useRef<number | null>(null);
+  const pendingCoordsRef = useRef<{ clientX: number; clientY: number } | null>(null);
 
-  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    if (window.matchMedia('(pointer: coarse)').matches) return;
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, []);
+
+  const applyTilt = () => {
+    rafIdRef.current = null;
     const el = cardRef.current;
-    if (!el) return;
+    const coords = pendingCoordsRef.current;
+    if (!el || !coords) return;
 
     const rect = el.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width;
-    const py = (e.clientY - rect.top) / rect.height;
+    if (rect.width === 0 || rect.height === 0) return;
+
+    const px = (coords.clientX - rect.left) / rect.width;
+    const py = (coords.clientY - rect.top) / rect.height;
 
     const rotateY = (px - 0.5) * (maxTilt * 2);
     const rotateX = (0.5 - py) * (maxTilt * 2);
 
-    setTransform(
-      `perspective(1000px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) scale3d(1.01, 1.01, 1.01)`
-    );
-    setGlowPos({ x: px * 100, y: py * 100, active: true });
+    el.style.setProperty('--tilt-rx', `${rotateX.toFixed(2)}deg`);
+    el.style.setProperty('--tilt-ry', `${rotateY.toFixed(2)}deg`);
+    el.style.setProperty('--tilt-scale', '1.01');
+    el.style.setProperty('--glow-x', `${(px * 100).toFixed(1)}%`);
+    el.style.setProperty('--glow-y', `${(py * 100).toFixed(1)}%`);
+    el.style.setProperty('--glow-opacity', '1');
+  };
+
+  const handleMouseEnter = () => {
+    const el = cardRef.current;
+    if (!el) return;
+    if (
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+      window.matchMedia('(pointer: coarse)').matches
+    ) {
+      return;
+    }
+    el.style.willChange = 'transform';
+  };
+
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+      window.matchMedia('(pointer: coarse)').matches
+    ) {
+      return;
+    }
+    pendingCoordsRef.current = { clientX: e.clientX, clientY: e.clientY };
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(applyTilt);
+    }
   };
 
   const handleMouseLeave = () => {
-    setTransform('perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)');
-    setGlowPos((prev) => ({ ...prev, active: false }));
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    pendingCoordsRef.current = null;
+    const el = cardRef.current;
+    if (!el) return;
+
+    el.style.setProperty('--tilt-rx', '0deg');
+    el.style.setProperty('--tilt-ry', '0deg');
+    el.style.setProperty('--tilt-scale', '1');
+    el.style.setProperty('--glow-opacity', '0');
+    el.style.willChange = 'auto';
   };
 
   return (
     <div
       ref={cardRef}
+      onMouseEnter={handleMouseEnter}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      style={{ transform }}
-      className={`relative transition-transform duration-200 ease-out will-change-transform ${className}`}
+      style={{
+        transform:
+          'perspective(1000px) rotateX(var(--tilt-rx, 0deg)) rotateY(var(--tilt-ry, 0deg)) scale3d(var(--tilt-scale, 1), var(--tilt-scale, 1), var(--tilt-scale, 1))',
+      }}
+      className={`relative transition-transform duration-200 ease-out ${className}`}
     >
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 rounded-[inherit] transition-opacity duration-300 z-10"
         style={{
-          opacity: glowPos.active ? 1 : 0,
-          background: `radial-gradient(520px circle at ${glowPos.x}% ${glowPos.y}%, ${glowColor}, transparent 60%)`,
+          opacity: 'var(--glow-opacity, 0)',
+          background: `radial-gradient(520px circle at var(--glow-x, 50%) var(--glow-y, 50%), ${glowColor}, transparent 60%)`,
         }}
       />
       {children}
