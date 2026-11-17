@@ -3,6 +3,8 @@ import { Image as ImageIcon } from 'lucide-react';
 
 interface ImageWithFallbackProps {
   src: string;
+  srcSet?: string;
+  sizes?: string;
   alt: string;
   fallbackTitle: string;
   className?: string;
@@ -14,6 +16,8 @@ interface ImageWithFallbackProps {
 
 export function ImageWithFallback({
   src,
+  srcSet,
+  sizes,
   alt,
   fallbackTitle,
   className = 'w-full h-full object-cover',
@@ -48,6 +52,8 @@ export function ImageWithFallback({
       )}
       <img
         src={src}
+        srcSet={srcSet}
+        sizes={sizes}
         alt={alt}
         width={width}
         height={height}

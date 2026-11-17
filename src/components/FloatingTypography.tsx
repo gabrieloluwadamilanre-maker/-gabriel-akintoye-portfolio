@@ -21,11 +21,19 @@ let scrollRafId: number | null = null;
 function notifySubscribers() {
   scrollRafId = null;
   const vh = window.innerHeight || 800;
+
+  // Phase 1: Batch all layout reads before performing any style writes
+  const measurements: { update: Subscriber; progress: number; el: HTMLDivElement }[] = [];
   subscribers.forEach(({ el, update }) => {
     const rect = el.getBoundingClientRect();
     if (rect.bottom < -120 || rect.top > vh + 120) return;
     const total = vh + rect.height;
     const progress = Math.min(1, Math.max(0, (vh - rect.top) / Math.max(total, 1)));
+    measurements.push({ el, update, progress });
+  });
+
+  // Phase 2: Batch all CSS custom property writes
+  measurements.forEach(({ el, update, progress }) => {
     update(progress, el);
   });
 }
@@ -41,8 +49,8 @@ function subscribeContainer(entry: { el: HTMLDivElement; update: Subscriber }) {
   if (!listenerAttached) {
     listenerAttached = true;
     window.addEventListener('scroll', handleSharedScroll, { passive: true });
-    notifySubscribers();
   }
+  handleSharedScroll();
   return () => {
     subscribers.delete(entry);
     if (subscribers.size === 0 && listenerAttached) {

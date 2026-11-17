@@ -305,83 +305,139 @@ export function Laptop3D() {
     if (!container) return;
 
     let cancelled = false;
-    let cleanupScene: (() => void) | null = null;
-    let idleHandle: number | undefined;
-    let deferTimeout: number | undefined;
+    let disposed = false;
+    let stageRafId = 0;
+    let frameId = 0;
 
-    const initScene = () => {
+    let renderer: THREE.WebGLRenderer | null = null;
+    let envTarget: THREE.WebGLRenderTarget | null = null;
+    let timer: THREE.Timer | null = null;
+    let fontSet: FontFaceSet | undefined;
+    let handleFontsLoaded: (() => void) | null = null;
+    let handleVisibilityChange: (() => void) | null = null;
+    let handlePointerMove: ((e: PointerEvent) => void) | null = null;
+    let handleContextLost: ((e: Event) => void) | null = null;
+    let intersectionObserver: IntersectionObserver | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+
+    const geometries: THREE.BufferGeometry[] = [];
+    const materials: THREE.Material[] = [];
+    const textures: THREE.Texture[] = [];
+
+    const cleanupResources = () => {
+      if (disposed) return;
+      disposed = true;
+      cancelAnimationFrame(stageRafId);
+      cancelAnimationFrame(frameId);
+
+      if (timer) {
+        timer.disconnect();
+        timer.dispose();
+        timer = null;
+      }
+      if (fontSet && handleFontsLoaded) {
+        fontSet.removeEventListener?.('loadingdone', handleFontsLoaded);
+      }
+      if (handleVisibilityChange) {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+      if (handlePointerMove) {
+        window.removeEventListener('pointermove', handlePointerMove);
+      }
+      intersectionObserver?.disconnect();
+      resizeObserver?.disconnect();
+      if (renderer && handleContextLost) {
+        renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
+      }
+
+      geometries.forEach((g) => g.dispose());
+      materials.forEach((m) => m.dispose());
+      textures.forEach((t) => t.dispose());
+      envTarget?.dispose();
+      renderer?.dispose();
+      renderer = null;
+    };
+
+    const yieldFrame = () =>
+      new Promise<void>((resolve) => {
+        stageRafId = requestAnimationFrame(() => resolve());
+      });
+
+    const initScene = async () => {
       if (cancelled || !mountRef.current) return;
 
       const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       const isMobileDevice =
         window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches;
 
-      // Detect software WebGL cleanly without extra permanent contexts
-      let isSoftwareGl = false;
-      try {
-        const probeCanvas = document.createElement('canvas');
-        const gl = probeCanvas.getContext('webgl2') || probeCanvas.getContext('webgl');
-        if (!gl) {
-          setFallbackMode(true);
-          return;
-        }
-        const ext = gl.getExtension('WEBGL_debug_renderer_info');
-        const param = ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER;
-        const gpu = String(gl.getParameter(param) || '');
-        isSoftwareGl = /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(gpu);
-        gl.getExtension('WEBGL_lose_context')?.loseContext();
-      } catch {
-        setFallbackMode(true);
-        return;
-      }
+      // Stage 1: Measure layout before DOM writes, create single WebGLRenderer, detect software GL
+      const initialWidth = container.clientWidth || 560;
+      const initialHeight = container.clientHeight || 440;
 
-      let renderer: THREE.WebGLRenderer;
+      let activeRenderer: THREE.WebGLRenderer;
       try {
-        renderer = new THREE.WebGLRenderer({
-          antialias: !isSoftwareGl,
+        activeRenderer = new THREE.WebGLRenderer({
+          antialias: !isMobileDevice,
           alpha: true,
           powerPreference: isMobileDevice ? 'default' : 'high-performance',
         });
       } catch {
-        setFallbackMode(true);
+        if (!cancelled) setFallbackMode(true);
         return;
+      }
+      renderer = activeRenderer;
+
+      const gl = activeRenderer.getContext();
+      if (!gl) {
+        cleanupResources();
+        if (!cancelled) setFallbackMode(true);
+        return;
+      }
+
+      let isSoftwareGl = false;
+      try {
+        const ext = gl.getExtension('WEBGL_debug_renderer_info');
+        const param = ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER;
+        const gpu = String(gl.getParameter(param) || '');
+        isSoftwareGl = /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(gpu);
+      } catch {
+        isSoftwareGl = false;
       }
 
       const useShadows = !isSoftwareGl && !isMobileDevice;
       const useHeavyPhysical = !isSoftwareGl && !isMobileDevice;
 
-      renderer.outputColorSpace = THREE.SRGBColorSpace;
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.15;
-      renderer.setPixelRatio(
+      activeRenderer.outputColorSpace = THREE.SRGBColorSpace;
+      activeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+      activeRenderer.toneMappingExposure = 1.15;
+      activeRenderer.setPixelRatio(
         isSoftwareGl
           ? 1
           : isMobileDevice
             ? Math.min(window.devicePixelRatio, 1.25)
             : Math.min(window.devicePixelRatio, 2)
       );
-      renderer.shadowMap.enabled = useShadows;
+      activeRenderer.shadowMap.enabled = useShadows;
       if (useShadows) {
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        activeRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
       }
 
-      renderer.domElement.style.width = '100%';
-      renderer.domElement.style.height = '100%';
-      renderer.domElement.style.display = 'block';
-      renderer.domElement.setAttribute('role', 'img');
-      renderer.domElement.setAttribute(
+      activeRenderer.domElement.style.width = '100%';
+      activeRenderer.domElement.style.height = '100%';
+      activeRenderer.domElement.style.display = 'block';
+      activeRenderer.domElement.setAttribute('role', 'img');
+      activeRenderer.domElement.setAttribute(
         'aria-label',
         'Interactive 3D laptop displaying HTML, CSS, JavaScript, and React code'
       );
 
-      container.innerHTML = '';
-      container.appendChild(renderer.domElement);
+      handleContextLost = (e: Event) => {
+        e.preventDefault();
+        if (!cancelled) setFallbackMode(true);
+      };
+      activeRenderer.domElement.addEventListener('webglcontextlost', handleContextLost);
 
-      const scene = new THREE.Scene();
-      const width = container.clientWidth || 560;
-      const height = container.clientHeight || 440;
-
-      const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 50);
+      const camera = new THREE.PerspectiveCamera(36, initialWidth / initialHeight, 0.1, 50);
       const updateCameraForSize = (w: number, h: number) => {
         camera.aspect = w / Math.max(h, 1);
         const aspectFactor = camera.aspect < 1.05 ? 6.4 : 5.35;
@@ -389,22 +445,38 @@ export function Laptop3D() {
         camera.lookAt(0, 0.25, 0);
         camera.updateProjectionMatrix();
       };
-      updateCameraForSize(width, height);
-      renderer.setSize(width, height, false);
+      updateCameraForSize(initialWidth, initialHeight);
+      activeRenderer.setSize(initialWidth, initialHeight, false);
 
-      // Studio environment reflection
-      const pmremGenerator = new THREE.PMREMGenerator(renderer);
-      const roomEnv = new RoomEnvironment();
-      const envTarget = pmremGenerator.fromScene(roomEnv, 0.04);
-      scene.environment = envTarget.texture;
-      roomEnv.dispose();
-      pmremGenerator.dispose();
+      container.innerHTML = '';
+      container.appendChild(activeRenderer.domElement);
 
-      // Lighting Rig
-      const hemiLight = new THREE.HemisphereLight(0x93c5fd, 0x0b1220, 0.85);
+      await yieldFrame();
+      if (cancelled || disposed) {
+        cleanupResources();
+        return;
+      }
+
+      // Stage 2: Scene, Studio Environment (hardware GPU only), and Lighting Rig
+      const scene = new THREE.Scene();
+
+      if (!isSoftwareGl) {
+        const pmremGenerator = new THREE.PMREMGenerator(activeRenderer);
+        const roomEnv = new RoomEnvironment();
+        envTarget = pmremGenerator.fromScene(roomEnv, 0.04);
+        scene.environment = envTarget.texture;
+        roomEnv.dispose();
+        pmremGenerator.dispose();
+      }
+
+      const hemiLight = new THREE.HemisphereLight(
+        0x93c5fd,
+        0x0b1220,
+        isSoftwareGl ? 1.28 : 0.85
+      );
       scene.add(hemiLight);
 
-      const keyLight = new THREE.DirectionalLight(0xf8fafc, 1.85);
+      const keyLight = new THREE.DirectionalLight(0xf8fafc, isSoftwareGl ? 2.0 : 1.85);
       keyLight.position.set(3.5, 5.5, 4.5);
       keyLight.castShadow = useShadows;
       if (useShadows) {
@@ -427,18 +499,20 @@ export function Laptop3D() {
       cyanAccentLight.position.set(2.8, -0.4, 2.5);
       scene.add(cyanAccentLight);
 
-      if (useHeavyPhysical) {
-        // Lightweight sky-blue directional fill preserves specular highlights alongside RoomEnvironment softboxes
-        const coolFillLight = new THREE.DirectionalLight(0x93c5fd, 0.72);
+      if (useHeavyPhysical || isSoftwareGl) {
+        // Lightweight sky-blue directional fill preserves specular highlights without RoomEnvironment CPU cost
+        const coolFillLight = new THREE.DirectionalLight(0x93c5fd, isSoftwareGl ? 0.92 : 0.72);
         coolFillLight.position.set(1.8, 2.6, 2.8);
         scene.add(coolFillLight);
       }
 
-      // Track disposable resources
-      const geometries: THREE.BufferGeometry[] = [];
-      const materials: THREE.Material[] = [];
-      const textures: THREE.Texture[] = [];
+      await yieldFrame();
+      if (cancelled || disposed) {
+        cleanupResources();
+        return;
+      }
 
+      // Stage 3: Textures, Materials, and Laptop Geometry
       const trackGeo = <T extends THREE.BufferGeometry>(g: T): T => {
         geometries.push(g);
         return g;
@@ -448,7 +522,7 @@ export function Laptop3D() {
         return m;
       };
 
-      // Adaptive PBR Materials (Standard on mobile, Physical clearcoat/anisotropy on desktop GPU)
+      // Adaptive PBR Materials (Standard on mobile/software, Physical clearcoat/anisotropy on desktop GPU)
       const aluminumMat = trackMat(
         useHeavyPhysical
           ? new THREE.MeshPhysicalMaterial({
@@ -531,7 +605,7 @@ export function Laptop3D() {
             })
       );
 
-      const maxAniso = renderer.capabilities.getMaxAnisotropy();
+      const maxAniso = activeRenderer.capabilities.getMaxAnisotropy();
       const { texture: screenTex, canvas: screenCanvas, scale: screenScale } =
         createCodeEditorTexture(maxAniso, isMobileDevice);
       textures.push(screenTex);
@@ -733,104 +807,87 @@ export function Laptop3D() {
       laptopRoot.rotation.set(0.14, -0.36, 0.03);
       laptopRoot.position.set(0, -0.15, 0);
 
-      // Pre-compile shaders only on desktop hardware GPU
-      if (useHeavyPhysical) {
-        renderer.compile(scene, camera);
+      await yieldFrame();
+      if (cancelled || disposed) {
+        cleanupResources();
+        return;
       }
 
-      // Redraw screen texture once non-blocking web fonts (JetBrains Mono) finish loading
-      let disposed = false;
-      const refreshScreenTexture = () => {
-        if (disposed) return;
+      // Stage 4: Pre-compile (desktop GPU), observers, deduplicated font redraw, first render/loop
+      if (useHeavyPhysical) {
+        activeRenderer.compile(scene, camera);
+      }
+
+      timer = new THREE.Timer();
+      timer.connect(document);
+
+      let isInViewport = true;
+      let isTabVisible = !document.hidden;
+      let isLoopRunning = false;
+      let hasRenderedInitialFrame = false;
+
+      // Redraw screen texture at most once when JetBrains Mono finishes loading
+      fontSet = document.fonts;
+      let hasRefreshedFontTexture = Boolean(fontSet?.check?.('500 15px "JetBrains Mono"'));
+
+      const refreshScreenTexture = (force = false) => {
+        if (disposed || hasRefreshedFontTexture) return;
+        if (!force && fontSet && !fontSet.check('500 15px "JetBrains Mono"')) return;
+        hasRefreshedFontTexture = true;
+        if (fontSet && handleFontsLoaded) {
+          fontSet.removeEventListener?.('loadingdone', handleFontsLoaded);
+        }
         drawCodeEditorCanvas(screenCanvas, screenScale);
         screenTex.needsUpdate = true;
-        if (prefersReducedMotion || !isLoopRunning) {
-          renderer.render(scene, camera);
+        if (!isLoopRunning && isInViewport && isTabVisible) {
+          activeRenderer.render(scene, camera);
         }
       };
 
-      const fontSet = document.fonts;
-      const handleFontsLoaded = () => refreshScreenTexture();
-      if (fontSet) {
+      handleFontsLoaded = () => refreshScreenTexture(false);
+      if (fontSet && !hasRefreshedFontTexture) {
         fontSet.addEventListener?.('loadingdone', handleFontsLoaded);
-        void fontSet.load('500 15px "JetBrains Mono"').then(refreshScreenTexture).catch(() => {});
-        void fontSet.ready.then(refreshScreenTexture);
+        void fontSet
+          .load('500 15px "JetBrains Mono"')
+          .then(() => refreshScreenTexture(true))
+          .catch(() => {});
+        void fontSet.ready.then(() => refreshScreenTexture(false));
       }
 
-      // Mouse-following target state (desktop only)
+      // Mouse-following target state (desktop hardware GPU only)
       let targetMouseX = 0;
       let targetMouseY = 0;
       let smoothMouseX = 0;
       let smoothMouseY = 0;
 
-      const handlePointerMove = (e: PointerEvent) => {
-        if (prefersReducedMotion || isMobileDevice || e.pointerType === 'touch') return;
+      handlePointerMove = (e: PointerEvent) => {
+        if (prefersReducedMotion || isMobileDevice || isSoftwareGl || e.pointerType === 'touch') {
+          return;
+        }
         targetMouseX = (e.clientX / window.innerWidth) * 2 - 1;
         targetMouseY = (e.clientY / window.innerHeight) * 2 - 1;
       };
       window.addEventListener('pointermove', handlePointerMove, { passive: true });
 
-      // Resize Observer
-      const resizeObserver = new ResizeObserver((entries) => {
+      resizeObserver = new ResizeObserver((entries) => {
+        if (disposed) return;
         for (const entry of entries) {
           const w = entry.contentRect.width;
           const h = entry.contentRect.height;
           if (w > 0 && h > 0) {
             updateCameraForSize(w, h);
-            renderer.setSize(w, h, false);
+            activeRenderer.setSize(w, h, false);
+            if (!isLoopRunning && isInViewport && isTabVisible) {
+              activeRenderer.render(scene, camera);
+            }
           }
         }
       });
       resizeObserver.observe(container);
 
-      // Context loss safety
-      const handleContextLost = (e: Event) => {
-        e.preventDefault();
-        setFallbackMode(true);
-      };
-      renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
-
-      // Animation Loop with Viewport + Tab Visibility Pacing (THREE.Timer)
-      const timer = new THREE.Timer();
-      timer.connect(document);
-      let frameId = 0;
-      let isInViewport = true;
-      let isTabVisible = !document.hidden;
-      let isLoopRunning = false;
-
-      function afterDraw(cb: () => void) {
-        const gl = renderer.getContext() as WebGL2RenderingContext;
-        if (!gl || !gl.fenceSync) {
-          frameId = window.setTimeout(cb, 80);
-          return;
-        }
-        const sync = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
-        gl.flush();
-        const poll = () => {
-          if (disposed || !isInViewport || !isTabVisible) return;
-          const state = sync && gl.getSyncParameter(sync, gl.SYNC_STATUS);
-          if (state === gl.UNSIGNALED) {
-            frameId = window.setTimeout(poll, 5);
-          } else {
-            if (sync) gl.deleteSync(sync);
-            frameId = window.setTimeout(cb, 80);
-          }
-        };
-        frameId = window.setTimeout(poll, 5);
-      }
-
       const stopLoop = () => {
         isLoopRunning = false;
         cancelAnimationFrame(frameId);
-        clearTimeout(frameId);
-      };
-
-      const startLoop = () => {
-        if (disposed || isLoopRunning || !isInViewport || !isTabVisible) return;
-        isLoopRunning = true;
-        timer.update(); // absorb paused time so float doesn't jump
-        timer.getDelta();
-        tick();
       };
 
       const tick = (timestamp?: number) => {
@@ -839,40 +896,51 @@ export function Laptop3D() {
           return;
         }
 
-        timer.update(timestamp);
-        const delta = Math.min(timer.getDelta(), 0.05);
-        const elapsed = timer.getElapsed();
+        if (timer) {
+          timer.update(timestamp);
+          const delta = Math.min(timer.getDelta(), 0.05);
+          const elapsed = timer.getElapsed();
 
-        if (!prefersReducedMotion) {
-          smoothMouseX = THREE.MathUtils.damp(smoothMouseX, targetMouseX, 4.5, delta);
-          smoothMouseY = THREE.MathUtils.damp(smoothMouseY, targetMouseY, 4.5, delta);
+          if (!prefersReducedMotion && !isSoftwareGl) {
+            smoothMouseX = THREE.MathUtils.damp(smoothMouseX, targetMouseX, 4.5, delta);
+            smoothMouseY = THREE.MathUtils.damp(smoothMouseY, targetMouseY, 4.5, delta);
 
-          laptopRoot.position.y = -0.15 + Math.sin(elapsed * 1.15) * 0.075;
-          laptopRoot.rotation.y =
-            -0.34 + Math.sin(elapsed * 0.45) * 0.14 + smoothMouseX * 0.22;
-          laptopRoot.rotation.x =
-            0.14 + Math.cos(elapsed * 0.55) * 0.03 + smoothMouseY * 0.12;
-          laptopRoot.rotation.z = 0.02 - smoothMouseX * 0.04;
+            laptopRoot.position.y = -0.15 + Math.sin(elapsed * 1.15) * 0.075;
+            laptopRoot.rotation.y =
+              -0.34 + Math.sin(elapsed * 0.45) * 0.14 + smoothMouseX * 0.22;
+            laptopRoot.rotation.x =
+              0.14 + Math.cos(elapsed * 0.55) * 0.03 + smoothMouseY * 0.12;
+            laptopRoot.rotation.z = 0.02 - smoothMouseX * 0.04;
 
-          const floatScale = 1 - Math.sin(elapsed * 1.15) * 0.04;
-          shadowPlane.scale.set(floatScale, floatScale, 1);
+            const floatScale = 1 - Math.sin(elapsed * 1.15) * 0.04;
+            shadowPlane.scale.set(floatScale, floatScale, 1);
+          }
         }
 
-        renderer.render(scene, camera);
+        activeRenderer.render(scene, camera);
+        hasRenderedInitialFrame = true;
 
-        if (prefersReducedMotion) {
+        // Static posed frame for reduced motion or software WebGL (SwiftShader/llvmpipe)
+        if (prefersReducedMotion || isSoftwareGl) {
           isLoopRunning = false;
           return;
         }
 
-        if (isSoftwareGl) {
-          afterDraw(tick);
-        } else {
-          frameId = requestAnimationFrame(tick);
-        }
+        frameId = requestAnimationFrame(tick);
       };
 
-      const handleVisibilityChange = () => {
+      const startLoop = () => {
+        if (disposed || isLoopRunning || !isInViewport || !isTabVisible) return;
+        if ((prefersReducedMotion || isSoftwareGl) && hasRenderedInitialFrame) return;
+        isLoopRunning = true;
+        if (timer) {
+          timer.update(); // absorb paused time so float doesn't jump
+          timer.getDelta();
+        }
+        tick();
+      };
+
+      handleVisibilityChange = () => {
         isTabVisible = !document.hidden;
         if (isTabVisible && isInViewport) {
           startLoop();
@@ -882,7 +950,7 @@ export function Laptop3D() {
       };
       document.addEventListener('visibilitychange', handleVisibilityChange);
 
-      const intersectionObserver = new IntersectionObserver(
+      intersectionObserver = new IntersectionObserver(
         (entries) => {
           const entry = entries[0];
           if (!entry) return;
@@ -898,48 +966,18 @@ export function Laptop3D() {
       intersectionObserver.observe(container);
 
       startLoop();
-
-      cleanupScene = () => {
-        disposed = true;
-        stopLoop();
-        timer.disconnect();
-        timer.dispose();
-        fontSet?.removeEventListener?.('loadingdone', handleFontsLoaded);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        intersectionObserver.disconnect();
-        window.removeEventListener('pointermove', handlePointerMove);
-        resizeObserver.disconnect();
-        renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
-
-        geometries.forEach((g) => g.dispose());
-        materials.forEach((m) => m.dispose());
-        textures.forEach((t) => t.dispose());
-        envTarget.dispose();
-        renderer.dispose();
-      };
     };
 
-    // Defer 3D initialization until browser is idle after initial frame
-    const win = window as Window & {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-      cancelIdleCallback?: (id: number) => void;
-    };
-
-    if (win.requestIdleCallback) {
-      idleHandle = win.requestIdleCallback(initScene, { timeout: 250 });
-    } else {
-      deferTimeout = window.setTimeout(initScene, 60);
-    }
+    // Hero already defers mounting Laptop3D; start Stage 1 on next animation frame
+    stageRafId = requestAnimationFrame(() => {
+      if (!cancelled) {
+        void initScene();
+      }
+    });
 
     return () => {
       cancelled = true;
-      if (idleHandle !== undefined) {
-        win.cancelIdleCallback?.(idleHandle);
-      }
-      if (deferTimeout !== undefined) {
-        window.clearTimeout(deferTimeout);
-      }
-      cleanupScene?.();
+      cleanupResources();
     };
   }, []);
 

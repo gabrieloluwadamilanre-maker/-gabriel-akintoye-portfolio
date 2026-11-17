@@ -160,6 +160,8 @@ export function Projects() {
                   <div className="group relative aspect-video w-full overflow-hidden border-b border-[#1E3A5F]/60 bg-[#0B1220]">
                     <ImageWithFallback
                       src={project.imageUrl}
+                      srcSet={project.imageSrcSet}
+                      sizes={project.imageSizes}
                       alt={project.imageAlt}
                       fallbackTitle={project.title}
                       width={project.imageWidth}

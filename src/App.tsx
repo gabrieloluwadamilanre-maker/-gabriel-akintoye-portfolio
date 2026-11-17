@@ -3,10 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type RefObject } from 'react';
 import { Footer } from './components/Footer';
 import { Hero } from './components/Hero';
 import { Navbar } from './components/Navbar';
+
+const BELOW_FOLD_TARGETS = new Set(['#about', '#skills', '#projects', '#contact']);
 
 const loadBelowFoldSections = () =>
   import('./components/BelowFoldSections').then((m) => ({
@@ -15,14 +17,20 @@ const loadBelowFoldSections = () =>
 
 const BelowFoldSections = lazy(loadBelowFoldSections);
 
-function BelowFoldFallback() {
+function BelowFoldFallback({ sentinelRef }: { sentinelRef: RefObject<HTMLDivElement | null> }) {
   return (
     <div aria-busy="true">
       <section
         id="about"
         aria-label="About Me"
-        className="scroll-mt-16 min-h-[680px] border-b border-[#1E293B]/80 bg-[#0E1729]"
-      />
+        className="relative scroll-mt-16 min-h-[680px] border-b border-[#1E293B]/80 bg-[#0E1729]"
+      >
+        <div
+          ref={sentinelRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute top-[220px] lg:top-[80px] left-0 h-px w-full"
+        />
+      </section>
       <section
         id="skills"
         aria-label="Skills"
@@ -43,42 +51,74 @@ function BelowFoldFallback() {
 }
 
 export default function App() {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [shouldLoadBelowFold, setShouldLoadBelowFold] = useState(
+    () => typeof window !== 'undefined' && BELOW_FOLD_TARGETS.has(window.location.hash)
+  );
+
   useEffect(() => {
-    let cancelled = false;
-    let idleId: number | undefined;
-    let timeoutId: number | undefined;
+    if (shouldLoadBelowFold) {
+      void loadBelowFoldSections();
+      return;
+    }
 
-    const prefetch = () => {
-      if (!cancelled) {
-        void loadBelowFoldSections();
+    let triggered = false;
+    const triggerBelowFoldLoad = () => {
+      if (triggered) return;
+      triggered = true;
+      void loadBelowFoldSections();
+      setShouldLoadBelowFold(true);
+    };
+
+    const handleHashChange = () => {
+      if (BELOW_FOLD_TARGETS.has(window.location.hash)) {
+        triggerBelowFoldLoad();
       }
     };
 
-    const win = window as Window & {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-      cancelIdleCallback?: (id: number) => void;
+    const handleAnchorIntent = (event: Event) => {
+      const target = event.target as Element | null;
+      const anchor = target?.closest?.('a[href^="#"]') as HTMLAnchorElement | null;
+      const href = anchor?.getAttribute('href');
+      if (href && BELOW_FOLD_TARGETS.has(href)) {
+        triggerBelowFoldLoad();
+      }
     };
 
-    const rafId = requestAnimationFrame(() => {
-      if (cancelled) return;
-      if (win.requestIdleCallback) {
-        idleId = win.requestIdleCallback(prefetch, { timeout: 200 });
-      } else {
-        timeoutId = window.setTimeout(prefetch, 80);
+    const handleScroll = () => {
+      if (window.scrollY > 16) {
+        triggerBelowFoldLoad();
       }
-    });
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    document.addEventListener('click', handleAnchorIntent, { capture: true });
+    document.addEventListener('focusin', handleAnchorIntent, { capture: true });
+    document.addEventListener('pointerenter', handleAnchorIntent, { capture: true, passive: true });
+
+    let observer: IntersectionObserver | null = null;
+    if (sentinelRef.current && 'IntersectionObserver' in window) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            triggerBelowFoldLoad();
+          }
+        },
+        { rootMargin: '40px 0px' }
+      );
+      observer.observe(sentinelRef.current);
+    }
 
     return () => {
-      cancelled = true;
-      cancelAnimationFrame(rafId);
-      if (idleId !== undefined) {
-        win.cancelIdleCallback?.(idleId);
-      }
-      if (timeoutId !== undefined) {
-        window.clearTimeout(timeoutId);
-      }
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('click', handleAnchorIntent, { capture: true });
+      document.removeEventListener('focusin', handleAnchorIntent, { capture: true });
+      document.removeEventListener('pointerenter', handleAnchorIntent, { capture: true });
+      observer?.disconnect();
     };
-  }, []);
+  }, [shouldLoadBelowFold]);
 
   return (
     <div className="min-h-screen bg-[#0B1220] text-[#F8FAFC] flex flex-col">
@@ -93,9 +133,13 @@ export default function App() {
 
       <main id="main-content" className="flex-1">
         <Hero />
-        <Suspense fallback={<BelowFoldFallback />}>
-          <BelowFoldSections />
-        </Suspense>
+        {shouldLoadBelowFold ? (
+          <Suspense fallback={<BelowFoldFallback sentinelRef={sentinelRef} />}>
+            <BelowFoldSections />
+          </Suspense>
+        ) : (
+          <BelowFoldFallback sentinelRef={sentinelRef} />
+        )}
       </main>
 
       <Footer />
