@@ -90,7 +90,7 @@ export function Hero() {
     <section
       id="home"
       aria-labelledby="hero-heading"
-      className="relative overflow-hidden border-b border-[#1E293B]/80 bg-gradient-to-b from-[#0B1220] via-[#0D1628] to-[#0B1220]"
+      className="relative scroll-mt-16 overflow-hidden border-b border-[#1E293B]/80 bg-gradient-to-b from-[#0B1220] via-[#0D1628] to-[#0B1220]"
     >
       {/* Subtle Ambient Blue Radial Backlights */}
       <div

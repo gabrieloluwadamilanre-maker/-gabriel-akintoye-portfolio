@@ -21,22 +21,22 @@ function BelowFoldFallback() {
       <section
         id="about"
         aria-label="About Me"
-        className="min-h-[480px] border-b border-[#1E293B]/80 bg-[#0E1729]"
+        className="scroll-mt-16 min-h-[680px] border-b border-[#1E293B]/80 bg-[#0E1729]"
       />
       <section
         id="skills"
         aria-label="Skills"
-        className="min-h-[560px] border-b border-[#1E293B]/80 bg-[#0B1220]"
+        className="scroll-mt-16 min-h-[890px] border-b border-[#1E293B]/80 bg-[#0B1220]"
       />
       <section
         id="projects"
         aria-label="Projects"
-        className="min-h-[640px] border-b border-[#1E293B]/80 bg-[#0E1729]"
+        className="scroll-mt-16 min-h-[1100px] border-b border-[#1E293B]/80 bg-[#0E1729]"
       />
       <section
         id="contact"
         aria-label="Contact"
-        className="min-h-[380px] bg-[#0B1220]"
+        className="scroll-mt-16 min-h-[420px] bg-[#0B1220]"
       />
     </div>
   );

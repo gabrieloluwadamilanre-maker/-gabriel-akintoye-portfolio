@@ -39,6 +39,8 @@ export const PROFILE = {
   aboutSecondary:
     'Every build is an opportunity to practice semantic markup, maintainable component structure, and smooth user interactions that work cleanly across desktop, tablet, and mobile screens.',
   email: 'gabrieloluwadamilanre@gmail.com',
+  gmailComposeUrl:
+    'https://mail.google.com/mail/?view=cm&fs=1&to=gabrieloluwadamilanre@gmail.com',
   whatsappDisplay: '+2348105755603',
   whatsappUrl: 'https://wa.me/2348105755603',
 };

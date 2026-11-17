@@ -46,7 +46,7 @@ export function About() {
     <section
       id="about"
       aria-labelledby="about-heading"
-      className="relative overflow-hidden border-b border-[#1E293B]/80 bg-[#0E1729]"
+      className="relative scroll-mt-16 overflow-hidden border-b border-[#1E293B]/80 bg-[#0E1729]"
     >
       <FloatingTypography items={ABOUT_FLOATING_WORDS} />
 

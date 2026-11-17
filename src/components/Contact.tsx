@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Check, Copy, Mail, MessageCircle } from 'lucide-react';
 import { m } from 'motion/react';
 import { PROFILE } from '@/src/data/portfolio';
@@ -16,15 +16,75 @@ const CONTACT_FLOATING_WORDS: FloatingWordItem[] = [
 ];
 
 export function Contact() {
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const resetTimerRef = useRef<number | null>(null);
+  const copyButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current !== null) {
+        window.clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, []);
+
+  const scheduleReset = (delayMs: number) => {
+    if (resetTimerRef.current !== null) {
+      window.clearTimeout(resetTimerRef.current);
+    }
+    resetTimerRef.current = window.setTimeout(() => {
+      setCopyStatus('idle');
+      resetTimerRef.current = null;
+    }, delayMs);
+  };
+
+  const fallbackCopyText = (text: string): boolean => {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '-9999px';
+    textarea.style.left = '-9999px';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, text.length);
+
+    let success = false;
+    try {
+      success = document.execCommand('copy');
+    } catch {
+      success = false;
+    } finally {
+      document.body.removeChild(textarea);
+      previouslyFocused?.focus();
+    }
+    return success;
+  };
 
   const handleCopyEmail = async () => {
-    try {
-      await navigator.clipboard.writeText(PROFILE.email);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2500);
-    } catch {
-      setCopied(false);
+    let copiedSuccessfully = false;
+
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(PROFILE.email);
+        copiedSuccessfully = true;
+      } catch {
+        copiedSuccessfully = fallbackCopyText(PROFILE.email);
+      }
+    } else {
+      copiedSuccessfully = fallbackCopyText(PROFILE.email);
+    }
+
+    if (copiedSuccessfully) {
+      setCopyStatus('copied');
+      scheduleReset(2500);
+    } else {
+      setCopyStatus('error');
+      scheduleReset(3500);
     }
   };
 
@@ -32,7 +92,7 @@ export function Contact() {
     <section
       id="contact"
       aria-labelledby="contact-heading"
-      className="relative overflow-hidden bg-[#0B1220]"
+      className="relative scroll-mt-16 overflow-hidden bg-[#0B1220]"
     >
       <FloatingTypography items={CONTACT_FLOATING_WORDS} />
 
@@ -89,7 +149,9 @@ export function Contact() {
                         Email
                       </h3>
                       <a
-                        href={`mailto:${PROFILE.email}`}
+                        href={PROFILE.gmailComposeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="block break-all text-sm text-[#E2E8F0] hover:text-[#60A5FA] transition-colors"
                       >
                         {PROFILE.email}
@@ -99,7 +161,9 @@ export function Contact() {
 
                   <div className="flex flex-wrap items-center gap-2 pt-2">
                     <a
-                      href={`mailto:${PROFILE.email}`}
+                      href={PROFILE.gmailComposeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-[#F8FAFC] shadow-[0_0_20px_rgba(59,130,246,0.35)] hover:bg-[#1D4ED8] transition-all whitespace-nowrap"
                     >
                       <span>Send Email</span>
@@ -107,15 +171,27 @@ export function Contact() {
                     </a>
 
                     <button
+                      ref={copyButtonRef}
                       type="button"
                       onClick={handleCopyEmail}
-                      aria-label={copied ? 'Email address copied' : 'Copy email address'}
+                      aria-label={
+                        copyStatus === 'copied'
+                          ? 'Email address copied'
+                          : copyStatus === 'error'
+                            ? 'Copy failed. Copy email manually'
+                            : 'Copy email address'
+                      }
                       className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-[#1E3A5F]/80 bg-[#0B1220]/80 px-3.5 py-2.5 text-xs font-medium text-[#F8FAFC] hover:border-[#3B82F6]/70 transition-colors whitespace-nowrap"
                     >
-                      {copied ? (
+                      {copyStatus === 'copied' ? (
                         <>
                           <Check className="w-4 h-4 text-[#60A5FA]" aria-hidden="true" />
                           <span>Copied</span>
+                        </>
+                      ) : copyStatus === 'error' ? (
+                        <>
+                          <Copy className="w-4 h-4 text-[#F87171]" aria-hidden="true" />
+                          <span>Failed</span>
                         </>
                       ) : (
                         <>
@@ -125,7 +201,11 @@ export function Contact() {
                       )}
                     </button>
                     <span role="status" aria-live="polite" className="sr-only">
-                      {copied ? 'Email address copied to clipboard.' : ''}
+                      {copyStatus === 'copied'
+                        ? 'Email address copied to clipboard.'
+                        : copyStatus === 'error'
+                          ? `Unable to copy automatically. Email address is ${PROFILE.email}.`
+                          : ''}
                     </span>
                   </div>
                 </div>

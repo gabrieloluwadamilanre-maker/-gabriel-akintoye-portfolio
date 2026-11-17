@@ -56,7 +56,7 @@ export function Skills() {
     <section
       id="skills"
       aria-labelledby="skills-heading"
-      className="relative overflow-hidden border-b border-[#1E293B]/80 bg-[#0B1220]"
+      className="relative scroll-mt-16 overflow-hidden border-b border-[#1E293B]/80 bg-[#0B1220]"
     >
       <FloatingTypography items={SKILLS_FLOATING_WORDS} />
 

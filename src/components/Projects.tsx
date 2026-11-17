@@ -26,6 +26,7 @@ const PROJECTS_FLOATING_WORDS: FloatingWordItem[] = [
 
 export function Projects() {
   const [previewProject, setPreviewProject] = useState<ProjectItem | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const lastTriggerRef = useRef<HTMLElement | null>(null);
 
@@ -44,13 +45,49 @@ export function Projects() {
   useEffect(() => {
     if (!previewProject) return;
 
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const frameId = requestAnimationFrame(() => {
       closeButtonRef.current?.focus();
     });
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault();
         closePreview();
+        return;
+      }
+
+      if (event.key === 'Tab') {
+        const dialogEl = modalRef.current;
+        if (!dialogEl) return;
+
+        const focusable = Array.from(
+          dialogEl.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        );
+        if (focusable.length === 0) {
+          event.preventDefault();
+          return;
+        }
+
+        const firstEl = focusable[0];
+        const lastEl = focusable[focusable.length - 1];
+        const activeEl = document.activeElement as HTMLElement | null;
+
+        if (event.shiftKey) {
+          if (!activeEl || !dialogEl.contains(activeEl) || activeEl === firstEl) {
+            event.preventDefault();
+            lastEl.focus();
+          }
+        } else {
+          if (!activeEl || !dialogEl.contains(activeEl) || activeEl === lastEl) {
+            event.preventDefault();
+            firstEl.focus();
+          }
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -58,6 +95,7 @@ export function Projects() {
     return () => {
       cancelAnimationFrame(frameId);
       window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
     };
   }, [previewProject]);
 
@@ -65,7 +103,7 @@ export function Projects() {
     <section
       id="projects"
       aria-labelledby="projects-heading"
-      className="relative overflow-hidden border-b border-[#1E293B]/80 bg-[#0E1729]"
+      className="relative scroll-mt-16 overflow-hidden border-b border-[#1E293B]/80 bg-[#0E1729]"
     >
       <FloatingTypography items={PROJECTS_FLOATING_WORDS} />
 
@@ -268,6 +306,7 @@ export function Projects() {
             className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B1220]/95 md:bg-[#0B1220]/90 p-4 md:backdrop-blur-md sm:p-6"
           >
             <m.div
+              ref={modalRef}
               initial={{ opacity: 0, scale: 0.96, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}

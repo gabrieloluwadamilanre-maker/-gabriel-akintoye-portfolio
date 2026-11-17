@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 
 function createRoundedRectShape(width: number, height: number, radius: number): THREE.Shape {
   const shape = new THREE.Shape();
@@ -429,11 +428,10 @@ export function Laptop3D() {
       scene.add(cyanAccentLight);
 
       if (useHeavyPhysical) {
-        RectAreaLightUniformsLib.init();
-        const rectAreaLight = new THREE.RectAreaLight(0x93c5fd, 2.2, 3.2, 1.8);
-        rectAreaLight.position.set(1.8, 2.6, 2.8);
-        rectAreaLight.lookAt(0, 0.5, 0);
-        scene.add(rectAreaLight);
+        // Lightweight sky-blue directional fill preserves specular highlights alongside RoomEnvironment softboxes
+        const coolFillLight = new THREE.DirectionalLight(0x93c5fd, 0.72);
+        coolFillLight.position.set(1.8, 2.6, 2.8);
+        scene.add(coolFillLight);
       }
 
       // Track disposable resources
@@ -792,8 +790,9 @@ export function Laptop3D() {
       };
       renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
 
-      // Animation Loop with Viewport + Tab Visibility Pacing
-      const clock = new THREE.Clock();
+      // Animation Loop with Viewport + Tab Visibility Pacing (THREE.Timer)
+      const timer = new THREE.Timer();
+      timer.connect(document);
       let frameId = 0;
       let isInViewport = true;
       let isTabVisible = !document.hidden;
@@ -829,18 +828,20 @@ export function Laptop3D() {
       const startLoop = () => {
         if (disposed || isLoopRunning || !isInViewport || !isTabVisible) return;
         isLoopRunning = true;
-        clock.getDelta(); // discard paused time delta so float doesn't jump
+        timer.update(); // absorb paused time so float doesn't jump
+        timer.getDelta();
         tick();
       };
 
-      const tick = () => {
+      const tick = (timestamp?: number) => {
         if (disposed || !isInViewport || !isTabVisible) {
           isLoopRunning = false;
           return;
         }
 
-        const delta = Math.min(clock.getDelta(), 0.05);
-        const elapsed = clock.getElapsedTime();
+        timer.update(timestamp);
+        const delta = Math.min(timer.getDelta(), 0.05);
+        const elapsed = timer.getElapsed();
 
         if (!prefersReducedMotion) {
           smoothMouseX = THREE.MathUtils.damp(smoothMouseX, targetMouseX, 4.5, delta);
@@ -901,6 +902,8 @@ export function Laptop3D() {
       cleanupScene = () => {
         disposed = true;
         stopLoop();
+        timer.disconnect();
+        timer.dispose();
         fontSet?.removeEventListener?.('loadingdone', handleFontsLoaded);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         intersectionObserver.disconnect();
