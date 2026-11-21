@@ -1,9 +1,41 @@
 import { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import {
+  ACESFilmicToneMapping,
+  BoxGeometry,
+  CanvasTexture,
+  CircleGeometry,
+  CylinderGeometry,
+  DirectionalLight,
+  ExtrudeGeometry,
+  Group,
+  HemisphereLight,
+  InstancedMesh,
+  MathUtils,
+  Mesh,
+  MeshBasicMaterial,
+  MeshPhongMaterial,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  Object3D,
+  PCFSoftShadowMap,
+  PerspectiveCamera,
+  PlaneGeometry,
+  PMREMGenerator,
+  PointLight,
+  Scene,
+  Shape,
+  ShapeGeometry,
+  SRGBColorSpace,
+  Timer,
+  WebGLRenderer,
+  type BufferGeometry,
+  type Material,
+  type Texture,
+  type WebGLRenderTarget,
+} from 'three';
 
-function createRoundedRectShape(width: number, height: number, radius: number): THREE.Shape {
-  const shape = new THREE.Shape();
+function createRoundedRectShape(width: number, height: number, radius: number): Shape {
+  const shape = new Shape();
   const x = -width / 2;
   const y = -height / 2;
 
@@ -265,19 +297,19 @@ function drawCodeEditorCanvas(canvas: HTMLCanvasElement, scale: number) {
 function createCodeEditorTexture(
   maxAnisotropy: number,
   isMobile: boolean
-): { texture: THREE.CanvasTexture; canvas: HTMLCanvasElement; scale: number } {
+): { texture: CanvasTexture; canvas: HTMLCanvasElement; scale: number } {
   const scale = isMobile ? 0.75 : 1;
   const canvas = document.createElement('canvas');
   drawCodeEditorCanvas(canvas, scale);
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = isMobile ? Math.min(2, maxAnisotropy) : Math.min(8, maxAnisotropy);
   texture.needsUpdate = true;
   return { texture, canvas, scale };
 }
 
-function createContactShadowTexture(): THREE.CanvasTexture {
+function createContactShadowTexture(): CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 256;
@@ -290,8 +322,8 @@ function createContactShadowTexture(): THREE.CanvasTexture {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 256, 256);
   }
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
+  const tex = new CanvasTexture(canvas);
+  tex.colorSpace = SRGBColorSpace;
   tex.needsUpdate = true;
   return tex;
 }
@@ -309,9 +341,9 @@ export function Laptop3D() {
     let stageRafId = 0;
     let frameId = 0;
 
-    let renderer: THREE.WebGLRenderer | null = null;
-    let envTarget: THREE.WebGLRenderTarget | null = null;
-    let timer: THREE.Timer | null = null;
+    let renderer: WebGLRenderer | null = null;
+    let envTarget: WebGLRenderTarget | null = null;
+    let timer: Timer | null = null;
     let fontSet: FontFaceSet | undefined;
     let handleFontsLoaded: (() => void) | null = null;
     let handleVisibilityChange: (() => void) | null = null;
@@ -320,9 +352,9 @@ export function Laptop3D() {
     let intersectionObserver: IntersectionObserver | null = null;
     let resizeObserver: ResizeObserver | null = null;
 
-    const geometries: THREE.BufferGeometry[] = [];
-    const materials: THREE.Material[] = [];
-    const textures: THREE.Texture[] = [];
+    const geometries: BufferGeometry[] = [];
+    const materials: Material[] = [];
+    const textures: Texture[] = [];
 
     const cleanupResources = () => {
       if (disposed) return;
@@ -374,9 +406,9 @@ export function Laptop3D() {
       const initialWidth = container.clientWidth || 560;
       const initialHeight = container.clientHeight || 440;
 
-      let activeRenderer: THREE.WebGLRenderer;
+      let activeRenderer: WebGLRenderer;
       try {
-        activeRenderer = new THREE.WebGLRenderer({
+        activeRenderer = new WebGLRenderer({
           antialias: !isMobileDevice,
           alpha: true,
           powerPreference: isMobileDevice ? 'default' : 'high-performance',
@@ -404,11 +436,17 @@ export function Laptop3D() {
         isSoftwareGl = false;
       }
 
+      const hasParallelShaderCompile = Boolean(gl.getExtension('KHR_parallel_shader_compile'));
       const useShadows = !isSoftwareGl && !isMobileDevice;
       const useHeavyPhysical = !isSoftwareGl && !isMobileDevice;
 
-      activeRenderer.outputColorSpace = THREE.SRGBColorSpace;
-      activeRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+      // Kick off desktop-only RoomEnvironment load concurrently during Stage 1 yield
+      const roomEnvModulePromise = useHeavyPhysical
+        ? import('three/addons/environments/RoomEnvironment.js')
+        : null;
+
+      activeRenderer.outputColorSpace = SRGBColorSpace;
+      activeRenderer.toneMapping = ACESFilmicToneMapping;
       activeRenderer.toneMappingExposure = 1.15;
       activeRenderer.setPixelRatio(
         isSoftwareGl
@@ -419,7 +457,7 @@ export function Laptop3D() {
       );
       activeRenderer.shadowMap.enabled = useShadows;
       if (useShadows) {
-        activeRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        activeRenderer.shadowMap.type = PCFSoftShadowMap;
       }
 
       activeRenderer.domElement.style.width = '100%';
@@ -437,7 +475,7 @@ export function Laptop3D() {
       };
       activeRenderer.domElement.addEventListener('webglcontextlost', handleContextLost);
 
-      const camera = new THREE.PerspectiveCamera(36, initialWidth / initialHeight, 0.1, 50);
+      const camera = new PerspectiveCamera(36, initialWidth / initialHeight, 0.1, 50);
       const updateCameraForSize = (w: number, h: number) => {
         camera.aspect = w / Math.max(h, 1);
         const aspectFactor = camera.aspect < 1.05 ? 6.4 : 5.35;
@@ -457,11 +495,16 @@ export function Laptop3D() {
         return;
       }
 
-      // Stage 2: Scene, Studio Environment (hardware GPU only), and Lighting Rig
-      const scene = new THREE.Scene();
+      // Stage 2: Scene, Studio Environment (desktop hardware GPU only), and Lighting Rig
+      const scene = new Scene();
 
-      if (!isSoftwareGl) {
-        const pmremGenerator = new THREE.PMREMGenerator(activeRenderer);
+      if (roomEnvModulePromise) {
+        const { RoomEnvironment } = await roomEnvModulePromise;
+        if (cancelled || disposed) {
+          cleanupResources();
+          return;
+        }
+        const pmremGenerator = new PMREMGenerator(activeRenderer);
         const roomEnv = new RoomEnvironment();
         envTarget = pmremGenerator.fromScene(roomEnv, 0.04);
         scene.environment = envTarget.texture;
@@ -469,14 +512,14 @@ export function Laptop3D() {
         pmremGenerator.dispose();
       }
 
-      const hemiLight = new THREE.HemisphereLight(
+      const hemiLight = new HemisphereLight(
         0x93c5fd,
         0x0b1220,
-        isSoftwareGl ? 1.28 : 0.85
+        useHeavyPhysical ? 0.85 : 1.32
       );
       scene.add(hemiLight);
 
-      const keyLight = new THREE.DirectionalLight(0xf8fafc, isSoftwareGl ? 2.0 : 1.85);
+      const keyLight = new DirectionalLight(0xf8fafc, useHeavyPhysical ? 1.85 : 2.0);
       keyLight.position.set(3.5, 5.5, 4.5);
       keyLight.castShadow = useShadows;
       if (useShadows) {
@@ -491,19 +534,32 @@ export function Laptop3D() {
       }
       scene.add(keyLight);
 
-      const blueRimLight = new THREE.PointLight(0x3b82f6, 7.5, 14, 1.8);
-      blueRimLight.position.set(-3.1, 2.2, -1.8);
-      scene.add(blueRimLight);
+      if (useHeavyPhysical) {
+        const blueRimLight = new PointLight(0x3b82f6, 7.5, 14, 1.8);
+        blueRimLight.position.set(-3.1, 2.2, -1.8);
+        scene.add(blueRimLight);
 
-      const cyanAccentLight = new THREE.PointLight(0x60a5fa, 5.2, 12, 1.8);
-      cyanAccentLight.position.set(2.8, -0.4, 2.5);
-      scene.add(cyanAccentLight);
+        const cyanAccentLight = new PointLight(0x60a5fa, 5.2, 12, 1.8);
+        cyanAccentLight.position.set(2.8, -0.4, 2.5);
+        scene.add(cyanAccentLight);
 
-      if (useHeavyPhysical || isSoftwareGl) {
-        // Lightweight sky-blue directional fill preserves specular highlights without RoomEnvironment CPU cost
-        const coolFillLight = new THREE.DirectionalLight(0x93c5fd, isSoftwareGl ? 0.92 : 0.72);
+        const coolFillLight = new DirectionalLight(0x93c5fd, 0.72);
         coolFillLight.position.set(1.8, 2.6, 2.8);
         scene.add(coolFillLight);
+      } else if (!isSoftwareGl) {
+        // Mobile hardware GPU: keep 1 PointLight rim + lightweight fill
+        const blueRimLight = new PointLight(0x3b82f6, 6.8, 14, 1.8);
+        blueRimLight.position.set(-3.1, 2.2, -1.8);
+        scene.add(blueRimLight);
+
+        const coolFillLight = new DirectionalLight(0x93c5fd, 0.75);
+        coolFillLight.position.set(1.8, 2.6, 2.8);
+        scene.add(coolFillLight);
+      } else {
+        // Software WebGL: blue directional rim replaces expensive PointLight distance attenuation loops
+        const blueDirectionalRim = new DirectionalLight(0x60a5fa, 0.98);
+        blueDirectionalRim.position.set(-2.8, 2.1, -1.5);
+        scene.add(blueDirectionalRim);
       }
 
       await yieldFrame();
@@ -513,19 +569,22 @@ export function Laptop3D() {
       }
 
       // Stage 3: Textures, Materials, and Laptop Geometry
-      const trackGeo = <T extends THREE.BufferGeometry>(g: T): T => {
+      const trackGeo = <T extends BufferGeometry>(g: T): T => {
         geometries.push(g);
         return g;
       };
-      const trackMat = <T extends THREE.Material>(m: T): T => {
+      const trackMat = <T extends Material>(m: T): T => {
         materials.push(m);
         return m;
       };
 
-      // Adaptive PBR Materials (Standard on mobile/software, Physical clearcoat/anisotropy on desktop GPU)
+      // Adaptive materials:
+      // - Desktop hardware GPU: MeshPhysicalMaterial (clearcoat/anisotropy)
+      // - Mobile hardware GPU: MeshStandardMaterial PBR
+      // - Software WebGL: MeshPhongMaterial + shared MeshBasicMaterial to cut LLVM JIT shader compilation
       const aluminumMat = trackMat(
         useHeavyPhysical
-          ? new THREE.MeshPhysicalMaterial({
+          ? new MeshPhysicalMaterial({
               color: 0x26344d,
               metalness: 0.88,
               roughness: 0.23,
@@ -533,76 +592,116 @@ export function Laptop3D() {
               clearcoat: 0.15,
               clearcoatRoughness: 0.3,
             })
-          : new THREE.MeshStandardMaterial({
-              color: 0x26344d,
-              metalness: 0.88,
-              roughness: 0.23,
-            })
+          : isSoftwareGl
+            ? new MeshPhongMaterial({
+                color: 0x2b3e5d,
+                specular: 0x93c5fd,
+                shininess: 58,
+              })
+            : new MeshStandardMaterial({
+                color: 0x26344d,
+                metalness: 0.88,
+                roughness: 0.23,
+              })
       );
 
       const darkTrimMat = trackMat(
-        new THREE.MeshStandardMaterial({
-          color: 0x0f172a,
-          metalness: 0.45,
-          roughness: 0.55,
-        })
+        isSoftwareGl
+          ? new MeshPhongMaterial({
+              color: 0x0f172a,
+              specular: 0x334155,
+              shininess: 24,
+            })
+          : new MeshStandardMaterial({
+              color: 0x0f172a,
+              metalness: 0.45,
+              roughness: 0.55,
+            })
       );
 
       const hingeMat = trackMat(
-        new THREE.MeshStandardMaterial({
-          color: 0x475569,
-          metalness: 0.92,
-          roughness: 0.18,
-        })
+        isSoftwareGl
+          ? new MeshPhongMaterial({
+              color: 0x475569,
+              specular: 0xcbd5e1,
+              shininess: 90,
+            })
+          : new MeshStandardMaterial({
+              color: 0x475569,
+              metalness: 0.92,
+              roughness: 0.18,
+            })
       );
 
       const keyboardBacklightMat = trackMat(
-        new THREE.MeshStandardMaterial({
-          color: 0x1e40af,
-          emissive: 0x3b82f6,
-          emissiveIntensity: 0.5,
-          roughness: 0.4,
-        })
+        isSoftwareGl
+          ? new MeshBasicMaterial({
+              color: 0x2563eb,
+            })
+          : new MeshStandardMaterial({
+              color: 0x1e40af,
+              emissive: 0x3b82f6,
+              emissiveIntensity: 0.5,
+              roughness: 0.4,
+            })
       );
 
       const keycapMat = trackMat(
-        new THREE.MeshStandardMaterial({
-          color: 0x111a2e,
-          metalness: 0.2,
-          roughness: 0.48,
-        })
+        isSoftwareGl
+          ? new MeshPhongMaterial({
+              color: 0x111a2e,
+              specular: 0x3b82f6,
+              shininess: 30,
+            })
+          : new MeshStandardMaterial({
+              color: 0x111a2e,
+              metalness: 0.2,
+              roughness: 0.48,
+            })
       );
 
       const trackpadMat = trackMat(
         useHeavyPhysical
-          ? new THREE.MeshPhysicalMaterial({
+          ? new MeshPhysicalMaterial({
               color: 0x162238,
               metalness: 0.25,
               roughness: 0.09,
               clearcoat: 1.0,
               clearcoatRoughness: 0.08,
             })
-          : new THREE.MeshStandardMaterial({
-              color: 0x162238,
-              metalness: 0.35,
-              roughness: 0.14,
-            })
+          : isSoftwareGl
+            ? new MeshPhongMaterial({
+                color: 0x162238,
+                specular: 0x60a5fa,
+                shininess: 95,
+              })
+            : new MeshStandardMaterial({
+                color: 0x162238,
+                metalness: 0.35,
+                roughness: 0.14,
+              })
       );
 
       const bezelGlassMat = trackMat(
         useHeavyPhysical
-          ? new THREE.MeshPhysicalMaterial({
+          ? new MeshPhysicalMaterial({
               color: 0x050912,
               metalness: 0.1,
               roughness: 0.06,
               clearcoat: 1.0,
               clearcoatRoughness: 0.05,
             })
-          : new THREE.MeshStandardMaterial({
-              color: 0x050912,
-              metalness: 0.18,
-              roughness: 0.12,
-            })
+          : isSoftwareGl
+            ? new MeshPhongMaterial({
+                color: 0x050912,
+                specular: 0x475569,
+                shininess: 100,
+              })
+            : new MeshStandardMaterial({
+                color: 0x050912,
+                metalness: 0.18,
+                roughness: 0.12,
+              })
       );
 
       const maxAniso = activeRenderer.capabilities.getMaxAnisotropy();
@@ -611,19 +710,23 @@ export function Laptop3D() {
       textures.push(screenTex);
 
       const screenMat = trackMat(
-        new THREE.MeshStandardMaterial({
-          map: screenTex,
-          emissiveMap: screenTex,
-          emissive: 0xffffff,
-          emissiveIntensity: 0.92,
-          roughness: 0.2,
-          metalness: 0.05,
-        })
+        isSoftwareGl
+          ? new MeshBasicMaterial({
+              map: screenTex,
+            })
+          : new MeshStandardMaterial({
+              map: screenTex,
+              emissiveMap: screenTex,
+              emissive: 0xffffff,
+              emissiveIntensity: 0.92,
+              roughness: 0.2,
+              metalness: 0.05,
+            })
       );
 
       const glassReflectionMat = trackMat(
         useHeavyPhysical
-          ? new THREE.MeshPhysicalMaterial({
+          ? new MeshPhysicalMaterial({
               color: 0xdbeafe,
               metalness: 0,
               roughness: 0.04,
@@ -633,20 +736,27 @@ export function Laptop3D() {
               opacity: 0.12,
               depthWrite: false,
             })
-          : new THREE.MeshStandardMaterial({
-              color: 0xdbeafe,
-              metalness: 0.1,
-              roughness: 0.08,
-              transparent: true,
-              opacity: 0.09,
-              depthWrite: false,
-            })
+          : isSoftwareGl
+            ? new MeshBasicMaterial({
+                color: 0xdbeafe,
+                transparent: true,
+                opacity: 0.07,
+                depthWrite: false,
+              })
+            : new MeshStandardMaterial({
+                color: 0xdbeafe,
+                metalness: 0.1,
+                roughness: 0.08,
+                transparent: true,
+                opacity: 0.09,
+                depthWrite: false,
+              })
       );
 
       const shadowTex = createContactShadowTexture();
       textures.push(shadowTex);
       const shadowMat = trackMat(
-        new THREE.MeshBasicMaterial({
+        new MeshBasicMaterial({
           map: shadowTex,
           transparent: true,
           opacity: 0.75,
@@ -655,7 +765,7 @@ export function Laptop3D() {
       );
 
       // Build Composite Laptop Group
-      const laptopRoot = new THREE.Group();
+      const laptopRoot = new Group();
       scene.add(laptopRoot);
 
       const laptopWidth = 3.05;
@@ -667,7 +777,7 @@ export function Laptop3D() {
       // 1. Lower Chassis Base
       const baseShape = createRoundedRectShape(laptopWidth, laptopDepth, 0.11);
       const baseGeo = trackGeo(
-        new THREE.ExtrudeGeometry(baseShape, {
+        new ExtrudeGeometry(baseShape, {
           depth: baseHeight,
           curveSegments,
           bevelEnabled: true,
@@ -677,26 +787,26 @@ export function Laptop3D() {
         })
       );
       baseGeo.rotateX(Math.PI / 2);
-      const baseMesh = new THREE.Mesh(baseGeo, aluminumMat);
+      const baseMesh = new Mesh(baseGeo, aluminumMat);
       baseMesh.position.y = 0;
       baseMesh.castShadow = useShadows;
       baseMesh.receiveShadow = useShadows;
       laptopRoot.add(baseMesh);
 
       // 2. Recessed Keyboard Well + Subtle Blue Underglow
-      const kbWellGeo = trackGeo(new THREE.BoxGeometry(2.58, 0.012, 0.96));
-      const kbWellMesh = new THREE.Mesh(kbWellGeo, darkTrimMat);
+      const kbWellGeo = trackGeo(new BoxGeometry(2.58, 0.012, 0.96));
+      const kbWellMesh = new Mesh(kbWellGeo, darkTrimMat);
       kbWellMesh.position.set(0, 0.012, -0.24);
       laptopRoot.add(kbWellMesh);
 
-      const kbGlowGeo = trackGeo(new THREE.PlaneGeometry(2.52, 0.9));
+      const kbGlowGeo = trackGeo(new PlaneGeometry(2.52, 0.9));
       kbGlowGeo.rotateX(-Math.PI / 2);
-      const kbGlowMesh = new THREE.Mesh(kbGlowGeo, keyboardBacklightMat);
+      const kbGlowMesh = new Mesh(kbGlowGeo, keyboardBacklightMat);
       kbGlowMesh.position.set(0, 0.019, -0.24);
       laptopRoot.add(kbGlowMesh);
 
       // 3. Instanced Keycaps Grid (62 keys in 5 rows)
-      const keyGeo = trackGeo(new THREE.BoxGeometry(1, 0.018, 1));
+      const keyGeo = trackGeo(new BoxGeometry(1, 0.018, 1));
       const rowConfigs = [
         { z: -0.60, cols: 14, width: 0.155, gap: 0.021, keyDepth: 0.145 },
         { z: -0.42, cols: 14, width: 0.155, gap: 0.021, keyDepth: 0.145 },
@@ -705,8 +815,8 @@ export function Laptop3D() {
         { z: 0.12, cols: 9, width: 0.165, gap: 0.024, keyDepth: 0.145 },
       ];
       const totalKeys = rowConfigs.reduce((acc, r) => acc + r.cols, 0);
-      const keysInstanced = new THREE.InstancedMesh(keyGeo, keycapMat, totalKeys);
-      const dummy = new THREE.Object3D();
+      const keysInstanced = new InstancedMesh(keyGeo, keycapMat, totalKeys);
+      const dummy = new Object3D();
       let keyIndex = 0;
 
       rowConfigs.forEach((row, rIdx) => {
@@ -730,22 +840,22 @@ export function Laptop3D() {
       laptopRoot.add(keysInstanced);
 
       // 4. Precision Glass Trackpad
-      const trackpadGeo = trackGeo(new THREE.BoxGeometry(1.06, 0.008, 0.62));
-      const trackpadMesh = new THREE.Mesh(trackpadGeo, trackpadMat);
+      const trackpadGeo = trackGeo(new BoxGeometry(1.06, 0.008, 0.62));
+      const trackpadMesh = new Mesh(trackpadGeo, trackpadMat);
       trackpadMesh.position.set(0, 0.015, 0.61);
       laptopRoot.add(trackpadMesh);
 
       // 5. Rear Hinge Barrel
       const hingeGeo = trackGeo(
-        new THREE.CylinderGeometry(0.038, 0.038, 2.25, isMobileDevice ? 12 : 20)
+        new CylinderGeometry(0.038, 0.038, 2.25, isMobileDevice ? 12 : 20)
       );
       hingeGeo.rotateZ(Math.PI / 2);
-      const hingeMesh = new THREE.Mesh(hingeGeo, hingeMat);
+      const hingeMesh = new Mesh(hingeGeo, hingeMat);
       hingeMesh.position.set(0, 0.02, -laptopDepth / 2 + 0.02);
       laptopRoot.add(hingeMesh);
 
       // 6. Upper Display Lid Group (Pivoted at Hinge)
-      const lidPivot = new THREE.Group();
+      const lidPivot = new Group();
       lidPivot.position.set(0, 0.025, -laptopDepth / 2 + 0.02);
       lidPivot.rotation.x = -0.34;
       laptopRoot.add(lidPivot);
@@ -753,7 +863,7 @@ export function Laptop3D() {
       const lidHeight = 1.98;
       const lidShape = createRoundedRectShape(laptopWidth, lidHeight, 0.11);
       const lidGeo = trackGeo(
-        new THREE.ExtrudeGeometry(lidShape, {
+        new ExtrudeGeometry(lidShape, {
           depth: 0.045,
           curveSegments,
           bevelEnabled: true,
@@ -762,44 +872,44 @@ export function Laptop3D() {
           bevelSegments,
         })
       );
-      const lidShell = new THREE.Mesh(lidGeo, aluminumMat);
+      const lidShell = new Mesh(lidGeo, aluminumMat);
       lidShell.position.set(0, lidHeight / 2, -0.045);
       lidShell.castShadow = useShadows;
       lidPivot.add(lidShell);
 
       // Front Glass Bezel
       const bezelShape = createRoundedRectShape(laptopWidth - 0.08, lidHeight - 0.08, 0.08);
-      const bezelGeo = trackGeo(new THREE.ShapeGeometry(bezelShape, curveSegments));
-      const bezelMesh = new THREE.Mesh(bezelGeo, bezelGlassMat);
+      const bezelGeo = trackGeo(new ShapeGeometry(bezelShape, curveSegments));
+      const bezelMesh = new Mesh(bezelGeo, bezelGlassMat);
       bezelMesh.position.set(0, lidHeight / 2, 0.013);
       lidPivot.add(bezelMesh);
 
       // Glowing Code Editor Screen
       const screenW = 2.82;
       const screenH = 1.76;
-      const screenGeo = trackGeo(new THREE.PlaneGeometry(screenW, screenH));
-      const screenMesh = new THREE.Mesh(screenGeo, screenMat);
+      const screenGeo = trackGeo(new PlaneGeometry(screenW, screenH));
+      const screenMesh = new Mesh(screenGeo, screenMat);
       screenMesh.position.set(0, lidHeight / 2 + 0.01, 0.016);
       lidPivot.add(screenMesh);
 
       // Subtle Outer Glass Reflection Overlay
-      const glassOverlayGeo = trackGeo(new THREE.PlaneGeometry(screenW + 0.04, screenH + 0.04));
-      const glassOverlayMesh = new THREE.Mesh(glassOverlayGeo, glassReflectionMat);
+      const glassOverlayGeo = trackGeo(new PlaneGeometry(screenW + 0.04, screenH + 0.04));
+      const glassOverlayMesh = new Mesh(glassOverlayGeo, glassReflectionMat);
       glassOverlayMesh.position.set(0, lidHeight / 2 + 0.01, 0.02);
       glassOverlayMesh.renderOrder = 2;
       lidPivot.add(glassOverlayMesh);
 
       // Webcam Indicator Dot
-      const camGeo = trackGeo(new THREE.CircleGeometry(0.018, 12));
-      const camMat = trackMat(new THREE.MeshBasicMaterial({ color: 0x3b82f6 }));
-      const camMesh = new THREE.Mesh(camGeo, camMat);
+      const camGeo = trackGeo(new CircleGeometry(0.018, 12));
+      const camMat = trackMat(new MeshBasicMaterial({ color: 0x3b82f6 }));
+      const camMesh = new Mesh(camGeo, camMat);
       camMesh.position.set(0, lidHeight - 0.065, 0.018);
       lidPivot.add(camMesh);
 
       // Contact Ground Glow Plane beneath Laptop
-      const shadowPlaneGeo = trackGeo(new THREE.PlaneGeometry(4.4, 3.3));
+      const shadowPlaneGeo = trackGeo(new PlaneGeometry(4.4, 3.3));
       shadowPlaneGeo.rotateX(-Math.PI / 2);
-      const shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowMat);
+      const shadowPlane = new Mesh(shadowPlaneGeo, shadowMat);
       shadowPlane.position.set(0, -0.58, 0.1);
       scene.add(shadowPlane);
 
@@ -813,12 +923,32 @@ export function Laptop3D() {
         return;
       }
 
-      // Stage 4: Pre-compile (desktop GPU), observers, deduplicated font redraw, first render/loop
-      if (useHeavyPhysical) {
-        activeRenderer.compile(scene, camera);
+      // Stage 4: Compile distinct shader programs asynchronously/per-frame before first render
+      const hasCompileAsync = typeof activeRenderer.compileAsync === 'function';
+      const shaderBatches = [shadowPlane, camMesh, screenMesh, keysInstanced, baseMesh];
+
+      for (const batch of shaderBatches) {
+        if (cancelled || disposed) {
+          cleanupResources();
+          return;
+        }
+        if (hasCompileAsync && hasParallelShaderCompile) {
+          try {
+            await activeRenderer.compileAsync(batch, camera, scene);
+          } catch {
+            activeRenderer.compile(batch, camera, scene);
+          }
+        } else {
+          activeRenderer.compile(batch, camera, scene);
+        }
+        await yieldFrame();
+      }
+      if (cancelled || disposed) {
+        cleanupResources();
+        return;
       }
 
-      timer = new THREE.Timer();
+      timer = new Timer();
       timer.connect(document);
 
       let isInViewport = true;
@@ -902,8 +1032,8 @@ export function Laptop3D() {
           const elapsed = timer.getElapsed();
 
           if (!prefersReducedMotion && !isSoftwareGl) {
-            smoothMouseX = THREE.MathUtils.damp(smoothMouseX, targetMouseX, 4.5, delta);
-            smoothMouseY = THREE.MathUtils.damp(smoothMouseY, targetMouseY, 4.5, delta);
+            smoothMouseX = MathUtils.damp(smoothMouseX, targetMouseX, 4.5, delta);
+            smoothMouseY = MathUtils.damp(smoothMouseY, targetMouseY, 4.5, delta);
 
             laptopRoot.position.y = -0.15 + Math.sin(elapsed * 1.15) * 0.075;
             laptopRoot.rotation.y =

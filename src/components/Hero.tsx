@@ -46,79 +46,59 @@ function LaptopLoadingFrame() {
         aria-hidden="true"
         className="relative z-10 h-auto w-full max-w-[360px] drop-shadow-[0_22px_38px_rgba(37,99,235,0.22)]"
       >
-        <defs>
-          <linearGradient id="laptopLid" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#1E293B" />
-            <stop offset="100%" stopColor="#0F172A" />
-          </linearGradient>
-          <linearGradient id="laptopBase" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#334155" />
-            <stop offset="100%" stopColor="#1E293B" />
-          </linearGradient>
-        </defs>
-
         {/* Ground Shadow Glow */}
         <ellipse cx="210" cy="264" rx="158" ry="16" fill="#3B82F6" fillOpacity="0.18" />
 
-        {/* Display Lid */}
+        {/* Display Lid & Inner Screen */}
         <rect
           x="74"
           y="24"
           width="272"
           height="172"
           rx="12"
-          fill="url(#laptopLid)"
+          fill="#141E30"
           stroke="#3B82F6"
           strokeOpacity="0.35"
           strokeWidth="1.5"
         />
-        {/* Inner Screen */}
         <rect x="84" y="34" width="252" height="150" rx="6" fill="#070E1A" />
-        {/* Editor Top Bar */}
-        <rect x="84" y="34" width="252" height="16" rx="4" fill="#0D1729" />
-        <circle cx="94" cy="42" r="2.5" fill="#F87171" />
-        <circle cx="102" cy="42" r="2.5" fill="#FBBF24" />
-        <circle cx="110" cy="42" r="2.5" fill="#34D399" />
-        {/* Active Editor Tab */}
-        <rect x="136" y="36" width="46" height="14" fill="#070E1A" />
-        <rect x="136" y="36" width="46" height="2" fill="#3B82F6" />
 
-        {/* Sidebar Explorer */}
-        <rect x="84" y="50" width="48" height="126" fill="#0A1324" />
-        <rect x="92" y="60" width="28" height="4" rx="2" fill="#475569" />
-        <rect x="92" y="72" width="32" height="6" rx="2" fill="#3B82F6" fillOpacity="0.35" />
-        <rect x="92" y="84" width="26" height="4" rx="2" fill="#94A3B8" fillOpacity="0.55" />
-        <rect x="92" y="94" width="30" height="4" rx="2" fill="#38BDF8" fillOpacity="0.55" />
+        {/* Editor Chrome: Top Bar & Sidebar Explorer */}
+        <path
+          d="M88 34 H332 C334 34 336 36 336 38 V50 H84 V38 C84 36 86 34 88 34 Z M84 50 H132 V176 H84 Z"
+          fill="#0B1528"
+        />
 
-        {/* Syntax-Highlighted Code Lines */}
-        <rect x="142" y="60" width="110" height="5" rx="2" fill="#64748B" fillOpacity="0.7" />
-        <rect x="142" y="72" width="42" height="5" rx="2" fill="#38BDF8" />
-        <rect x="188" y="72" width="76" height="5" rx="2" fill="#34D399" />
-        <rect x="142" y="88" width="54" height="5" rx="2" fill="#C084FC" />
-        <rect x="200" y="88" width="68" height="5" rx="2" fill="#60A5FA" />
-        <rect x="142" y="102" width="44" height="5" rx="2" fill="#C084FC" />
-        <rect x="190" y="102" width="94" height="5" rx="2" fill="#FBBF24" />
-        <rect x="152" y="116" width="84" height="5" rx="2" fill="#93C5FD" />
-        <rect x="152" y="130" width="126" height="6" rx="2" fill="#3B82F6" fillOpacity="0.35" />
-        <rect x="154" y="131" width="64" height="4" rx="2" fill="#38BDF8" />
-        <rect x="222" y="131" width="48" height="4" rx="2" fill="#34D399" />
-        <rect x="142" y="146" width="38" height="5" rx="2" fill="#CBD5E1" fillOpacity="0.7" />
+        {/* Window Dots & Syntax Accents */}
+        <path
+          d="M91 42 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M99 42 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0 M107 42 a2.5 2.5 0 1 0 5 0 a2.5 2.5 0 1 0 -5 0"
+          fill="#64748B"
+        />
+        <path
+          d="M136 36 H182 V38 H136 Z M92 72 H124 V78 H92 Z M142 72 H184 V77 H142 Z M200 88 H268 V93 H200 Z M152 116 H236 V121 H152 Z M154 131 H218 V135 H154 Z M84 175 H336 V184 H84 Z"
+          fill="#2563EB"
+          fillOpacity="0.85"
+        />
+        <path
+          d="M188 72 H264 V77 H188 Z M142 88 H196 V93 H142 Z M190 102 H284 V107 H190 Z M222 131 H270 V135 H222 Z M142 146 H180 V151 H142 Z"
+          fill="#38BDF8"
+          fillOpacity="0.75"
+        />
 
-        {/* Bottom Status Bar */}
-        <rect x="84" y="175" width="252" height="9" rx="2" fill="#1D4ED8" />
-
-        {/* Lower Metallic Chassis & Keyboard Deck */}
+        {/* Lower Metallic Chassis, Keyboard Deck & Trackpad */}
         <path
           d="M72 198 H348 L384 248 C387 252 384 256 378 256 H42 C36 256 33 252 36 248 Z"
-          fill="url(#laptopBase)"
+          fill="#233044"
           stroke="#475569"
           strokeOpacity="0.6"
           strokeWidth="1.2"
         />
-        {/* Keyboard Backlight Area */}
-        <path d="M98 205 H322 L338 228 H82 Z" fill="#0F172A" stroke="#3B82F6" strokeOpacity="0.35" />
-        {/* Trackpad */}
-        <path d="M174 234 H246 L252 248 H168 Z" fill="#162238" stroke="#334155" />
+        <path
+          d="M98 205 H322 L338 228 H82 Z M174 234 H246 L252 248 H168 Z"
+          fill="#0F172A"
+          stroke="#3B82F6"
+          strokeOpacity="0.3"
+        />
       </svg>
     </div>
   );

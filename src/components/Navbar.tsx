@@ -150,18 +150,14 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Smooth CSS Grid-Row Animated Mobile Navigation Panel */}
+      {/* Conditionally mounted mobile navigation panel preserves aria-controls target while avoiding hidden DOM nodes */}
       <div
         id="mobile-navigation"
-        aria-hidden={!mobileMenuOpen}
-        className={`md:hidden grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
-          mobileMenuOpen
-            ? 'grid-rows-[1fr] opacity-100 border-t border-[#1E3A5F]/50 bg-[#0B1220]/98'
-            : 'grid-rows-[0fr] opacity-0 pointer-events-none'
-        }`}
+        hidden={!mobileMenuOpen}
+        className="md:hidden border-t border-[#1E3A5F]/50 bg-[#0B1220]/98"
       >
-        <nav aria-label="Mobile Navigation" className="overflow-hidden">
-          <div className="px-4 py-4 sm:px-6">
+        {mobileMenuOpen && (
+          <nav aria-label="Mobile Navigation" className="px-4 py-4 sm:px-6">
             <ul className="flex flex-col gap-1">
               {NAV_LINKS.map((link) => {
                 const isActive = activeSection === link.href;
@@ -169,7 +165,6 @@ export function Navbar() {
                   <li key={link.href}>
                     <a
                       href={link.href}
-                      tabIndex={mobileMenuOpen ? 0 : -1}
                       aria-current={isActive ? 'page' : undefined}
                       onClick={() => handleNavClick(link.href)}
                       className={`flex min-h-[44px] items-center justify-between rounded-lg px-3 py-2 text-base font-medium transition-colors ${
@@ -190,15 +185,14 @@ export function Navbar() {
             <div className="mt-3 pt-3 border-t border-[#1E293B]">
               <a
                 href="#contact"
-                tabIndex={mobileMenuOpen ? 0 : -1}
                 onClick={() => handleNavClick('#contact')}
                 className="flex min-h-[44px] w-full items-center justify-center rounded-lg bg-[#2563EB] px-4 py-2.5 text-sm font-semibold text-[#F8FAFC] shadow-[0_0_20px_rgba(59,130,246,0.35)] hover:bg-[#1D4ED8] transition-colors"
               >
                 Contact Me
               </a>
             </div>
-          </div>
-        </nav>
+          </nav>
+        )}
       </div>
     </header>
   );
