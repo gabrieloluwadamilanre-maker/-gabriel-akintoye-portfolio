@@ -328,8 +328,14 @@ function createContactShadowTexture(): CanvasTexture {
   return tex;
 }
 
-export function Laptop3D() {
+interface Laptop3DProps {
+  onFirstRender?: () => void;
+}
+
+export function Laptop3D({ onFirstRender }: Laptop3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const onFirstRenderRef = useRef(onFirstRender);
+  onFirstRenderRef.current = onFirstRender;
   const [fallbackMode, setFallbackMode] = useState(false);
 
   useEffect(() => {
@@ -338,8 +344,21 @@ export function Laptop3D() {
 
     let cancelled = false;
     let disposed = false;
+    let hasNotifiedReady = false;
     let stageRafId = 0;
     let frameId = 0;
+
+    const notifyReady = () => {
+      if (hasNotifiedReady || cancelled || disposed) return;
+      hasNotifiedReady = true;
+      onFirstRenderRef.current?.();
+    };
+
+    const triggerFallback = () => {
+      if (cancelled) return;
+      setFallbackMode(true);
+      notifyReady();
+    };
 
     let renderer: WebGLRenderer | null = null;
     let envTarget: WebGLRenderTarget | null = null;
@@ -414,15 +433,21 @@ export function Laptop3D() {
           powerPreference: isMobileDevice ? 'default' : 'high-performance',
         });
       } catch {
-        if (!cancelled) setFallbackMode(true);
+        triggerFallback();
         return;
       }
       renderer = activeRenderer;
 
+      // Skip synchronous getShaderInfoLog/getProgramInfoLog driver stalls in production;
+      // keep enabled in development to preserve shader diagnostics.
+      if (import.meta.env.PROD) {
+        activeRenderer.debug.checkShaderErrors = false;
+      }
+
       const gl = activeRenderer.getContext();
       if (!gl) {
         cleanupResources();
-        if (!cancelled) setFallbackMode(true);
+        triggerFallback();
         return;
       }
 
@@ -471,7 +496,7 @@ export function Laptop3D() {
 
       handleContextLost = (e: Event) => {
         e.preventDefault();
-        if (!cancelled) setFallbackMode(true);
+        triggerFallback();
       };
       activeRenderer.domElement.addEventListener('webglcontextlost', handleContextLost);
 
@@ -764,6 +789,13 @@ export function Laptop3D() {
         })
       );
 
+      // Yield between 2D canvas texture drawing / material setup and 3D ExtrudeGeometry construction
+      await yieldFrame();
+      if (cancelled || disposed) {
+        cleanupResources();
+        return;
+      }
+
       // Build Composite Laptop Group
       const laptopRoot = new Group();
       scene.add(laptopRoot);
@@ -1047,8 +1079,16 @@ export function Laptop3D() {
           }
         }
 
-        activeRenderer.render(scene, camera);
+        try {
+          activeRenderer.render(scene, camera);
+        } catch {
+          stopLoop();
+          cleanupResources();
+          triggerFallback();
+          return;
+        }
         hasRenderedInitialFrame = true;
+        notifyReady();
 
         // Static posed frame for reduced motion or software WebGL (SwiftShader/llvmpipe)
         if (prefersReducedMotion || isSoftwareGl) {

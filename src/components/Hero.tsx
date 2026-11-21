@@ -30,11 +30,12 @@ const HERO_FLOATING_WORDS: FloatingWordItem[] = [
   },
 ];
 
-function LaptopLoadingFrame() {
+function LaptopLoadingFrame({ decorative = false }: { decorative?: boolean }) {
   return (
     <div
-      role="img"
-      aria-label="Interactive 3D laptop workspace loading"
+      role={decorative ? undefined : 'img'}
+      aria-label={decorative ? undefined : 'Interactive 3D laptop workspace loading'}
+      aria-hidden={decorative || undefined}
       className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-[#1E3A5F]/40 bg-[#0B1426]/65 p-4"
     >
       <div
@@ -106,6 +107,20 @@ function LaptopLoadingFrame() {
 
 export function Hero() {
   const [shouldLoad3D, setShouldLoad3D] = useState(false);
+  const [isLaptopReady, setIsLaptopReady] = useState(false);
+  const [showPlaceholder, setShowPlaceholder] = useState(true);
+
+  useEffect(() => {
+    if (!isLaptopReady) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setShowPlaceholder(false);
+      return;
+    }
+    const timerId = window.setTimeout(() => {
+      setShowPlaceholder(false);
+    }, 220);
+    return () => window.clearTimeout(timerId);
+  }, [isLaptopReady]);
 
   useEffect(() => {
     let cancelled = false;
@@ -206,13 +221,21 @@ export function Hero() {
 
           {/* Right Column: Deferred Interactive 3D Programming Laptop */}
           <div className="lg:col-span-6 flex items-center justify-center">
-            <div className="w-full h-[300px] sm:h-[380px] lg:h-[470px]">
-              {shouldLoad3D ? (
-                <Suspense fallback={<LaptopLoadingFrame />}>
-                  <Laptop3D />
+            <div className="relative w-full h-[300px] sm:h-[380px] lg:h-[470px]">
+              {shouldLoad3D && (
+                <Suspense fallback={null}>
+                  <Laptop3D onFirstRender={() => setIsLaptopReady(true)} />
                 </Suspense>
-              ) : (
-                <LaptopLoadingFrame />
+              )}
+              {showPlaceholder && (
+                <div
+                  aria-hidden={shouldLoad3D || undefined}
+                  className={`pointer-events-none absolute inset-0 z-20 transition-opacity duration-200 ease-out ${
+                    isLaptopReady ? 'opacity-0' : 'opacity-100'
+                  }`}
+                >
+                  <LaptopLoadingFrame decorative={shouldLoad3D} />
+                </div>
               )}
             </div>
           </div>
